@@ -15,6 +15,28 @@ function formatDate(iso) {
   });
 }
 
+function formatSet(set) {
+  const parts = [];
+  if (set.weightLbs != null) parts.push(`${set.weightLbs} lbs`);
+  if (set.reps != null) parts.push(`${set.reps} reps`);
+  if (set.assistedBand) parts.push('band');
+  return parts.length ? parts.join(' × ') : '—';
+}
+
+function formatLogSummary(log) {
+  if (log.sets?.length) {
+    return log.sets.map((s) => `Set ${s.setNumber}: ${formatSet(s)}`).join(' · ');
+  }
+  if (log.weight_lbs != null || log.reps != null) {
+    return formatSet({
+      weightLbs: log.weight_lbs != null ? Number(log.weight_lbs) : null,
+      reps: log.reps != null ? Number(log.reps) : null,
+      assistedBand: false,
+    });
+  }
+  return log.completed ? 'Done' : '—';
+}
+
 export default function SessionDetailPage() {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -70,17 +92,9 @@ export default function SessionDetailPage() {
               <p className="section-label">Exercises</p>
               <Card>
                 {session.logs.map((log) => (
-                  <div className="detail-row" key={log.id}>
+                  <div className="detail-row detail-row--stacked" key={log.id}>
                     <span className="detail-row__label">{log.exercise_name}</span>
-                    <span className="detail-row__value">
-                      {log.weight_lbs != null || log.reps != null
-                        ? `${log.weight_lbs != null ? `${log.weight_lbs} lbs` : ''}${
-                            log.weight_lbs != null && log.reps != null ? ' × ' : ''
-                          }${log.reps != null ? `${log.reps} reps` : ''}`
-                        : log.completed
-                        ? 'Done'
-                        : '—'}
-                    </span>
+                    <span className="detail-row__value">{formatLogSummary(log)}</span>
                   </div>
                 ))}
               </Card>
@@ -90,7 +104,9 @@ export default function SessionDetailPage() {
               <div className="section">
                 <p className="section-label">Notes</p>
                 <Card>
-                  <p style={{ margin: 0 }} className="muted">{session.session_notes}</p>
+                  <p style={{ fontSize: 15, lineHeight: 1.5, color: 'var(--text-secondary)' }}>
+                    {session.session_notes}
+                  </p>
                 </Card>
               </div>
             )}

@@ -20,11 +20,11 @@
       "title": "Lift A — Strength Pull",
       "subtitle": "Pull-up priority · Compound pulling · Lower body strength",
       "exercises": [
-        { "sortOrder": 1, "name": "Pull-ups", "block": null, "targetSets": "5", "targetReps": "2–5", "tracksWeight": true, "isPriority": true, "notesHint": "Stop 1–2 reps before failure" },
-        { "sortOrder": 2, "name": "Squat", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 3, "name": "Bench Press", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 4, "name": "Row", "block": null, "targetSets": "3", "targetReps": "8–12", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 5, "name": "Bicep Curls", "block": null, "targetSets": "2", "targetReps": "10–15", "tracksWeight": true, "isPriority": false, "notesHint": null }
+        { "sortOrder": 1, "name": "Pull-ups", "block": null, "targetSets": "5", "targetReps": "2–5", "tracksWeight": false, "loggingMode": "bodyweight_sets", "isPriority": true, "notesHint": "Stop 1–2 reps before failure" },
+        { "sortOrder": 2, "name": "Squat", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 3, "name": "Bench Press", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 4, "name": "Row", "block": null, "targetSets": "3", "targetReps": "8–12", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 5, "name": "Bicep Curls", "block": null, "targetSets": "2", "targetReps": "10–15", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null }
       ]
     },
     {
@@ -35,22 +35,22 @@
       "title": "Movement 1 — Mobility & Recovery",
       "subtitle": "Move well, recover, improve tissue quality · Intensity 5–6/10",
       "exercises": [
-        { "sortOrder": 1, "name": "Jump rope", "block": "Warmup (5 min)", "targetSets": null, "targetReps": "2 min", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 2, "name": "Arm circles", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 3, "name": "Hip circles", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 4, "name": "Light skipping", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 5, "name": "Deep squat hold", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "60 sec", "tracksWeight": false, "isPriority": false, "notesHint": "Flow continuously" },
-        { "sortOrder": 6, "name": "World's greatest stretch", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "5/side", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 7, "name": "Couch stretch", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "60 sec/side", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 8, "name": "Thoracic rotations", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "8/side", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 9, "name": "Hanging from bar", "block": "Block A — Mobility (15–20 min)", "targetSets": "2", "targetReps": "30 sec", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 10, "name": "Ankle mobility rocks", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "10/side", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 11, "name": "Bear crawl", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 yd", "tracksWeight": false, "isPriority": false, "notesHint": "Low fatigue" },
-        { "sortOrder": 12, "name": "Crab walk", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 yd", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 13, "name": "Hollow hold", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "30 sec", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 14, "name": "Arch hold", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 sec", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 15, "name": "Hanging knee raises", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "8", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 16, "name": "Light explosiveness (pick ONE)", "block": "Block C — Light Explosiveness (optional)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": "5×20m sprints · or 5×3 box jumps · or 5×5 broad jumps" }
+        { "sortOrder": 1, "name": "Jump rope", "block": "Warmup (5 min)", "targetSets": null, "targetReps": "2 min", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 2, "name": "Arm circles", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 3, "name": "Hip circles", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 4, "name": "Light skipping", "block": "Warmup (5 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 5, "name": "Deep squat hold", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "60 sec", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "Flow continuously" },
+        { "sortOrder": 6, "name": "World's greatest stretch", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "5/side", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 7, "name": "Couch stretch", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "60 sec/side", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 8, "name": "Thoracic rotations", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "8/side", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 9, "name": "Hanging from bar", "block": "Block A — Mobility (15–20 min)", "targetSets": "2", "targetReps": "30 sec", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 10, "name": "Ankle mobility rocks", "block": "Block A — Mobility (15–20 min)", "targetSets": null, "targetReps": "10/side", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 11, "name": "Bear crawl", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 yd", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "Low fatigue" },
+        { "sortOrder": 12, "name": "Crab walk", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 yd", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 13, "name": "Hollow hold", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "30 sec", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 14, "name": "Arch hold", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "20 sec", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 15, "name": "Hanging knee raises", "block": "Block B — Gymnastics Control (15–20 min)", "targetSets": "3", "targetReps": "8", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 16, "name": "Light explosiveness (pick ONE)", "block": "Block C — Light Explosiveness (optional)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "5×20m sprints · or 5×3 box jumps · or 5×5 broad jumps" }
       ]
     },
     {
@@ -61,11 +61,25 @@
       "title": "Lift B — Strength Push",
       "subtitle": "Overhead pressing · Posterior chain · Lat work",
       "exercises": [
-        { "sortOrder": 1, "name": "Overhead Press", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 2, "name": "Romanian Deadlift", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 3, "name": "Incline DB Press", "block": null, "targetSets": "3", "targetReps": "8–12", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 4, "name": "Lat Pulldown / Assisted Pull-ups", "block": null, "targetSets": "3", "targetReps": "8–10", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 5, "name": "Core OR Dead Hang", "block": null, "targetSets": "2–3", "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": "2–3 sets" }
+        { "sortOrder": 1, "name": "Overhead Press", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 2, "name": "Romanian Deadlift", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 3, "name": "Incline DB Press", "block": null, "targetSets": "3", "targetReps": "8–12", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        {
+          "sortOrder": 4,
+          "name": "Lat Pulldown / Assisted Pull-ups",
+          "block": null,
+          "targetSets": "3",
+          "targetReps": "8–10",
+          "tracksWeight": true,
+          "loggingMode": "variant",
+          "variantOptions": [
+            { "key": "lat_pulldown", "label": "Lat Pulldown", "mode": "weighted_sets" },
+            { "key": "assisted_pullups", "label": "Assisted Pull-ups", "mode": "bodyweight_sets" }
+          ],
+          "isPriority": false,
+          "notesHint": null
+        },
+        { "sortOrder": 5, "name": "Core OR Dead Hang", "block": null, "targetSets": "2–3", "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "2–3 sets" }
       ]
     },
     {
@@ -76,16 +90,16 @@
       "title": "Movement 2 — Speed, Power & Agility",
       "subtitle": "Speed, power, agility · Quality > fatigue · Intensity 6–7/10",
       "exercises": [
-        { "sortOrder": 1, "name": "A-skips", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 2, "name": "B-skips", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 3, "name": "High knees", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 4, "name": "Carioca", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 5, "name": "Dynamic lunges", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 6, "name": "Box jumps", "block": "Block A — Plyometrics (15 min)", "targetSets": "5", "targetReps": "3", "tracksWeight": false, "isPriority": false, "notesHint": "Quality > fatigue" },
-        { "sortOrder": 7, "name": "Lateral bounds", "block": "Block A — Plyometrics (15 min)", "targetSets": "3", "targetReps": "6/side", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 8, "name": "Depth drops", "block": "Block A — Plyometrics (15 min)", "targetSets": "3", "targetReps": "5", "tracksWeight": false, "isPriority": false, "notesHint": null },
-        { "sortOrder": 9, "name": "Agility (choose 2)", "block": "Block B — Agility (15 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": "Shuttle 5-10-5 ×5 · Cone drill ×5 · Reaction drill ×10 · Fast feet ×5 rounds" },
-        { "sortOrder": 10, "name": "Fun finisher", "block": "Block C — Fun (10–15 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": "Find a workout online you want to try — go for it!" }
+        { "sortOrder": 1, "name": "A-skips", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 2, "name": "B-skips", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 3, "name": "High knees", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 4, "name": "Carioca", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 5, "name": "Dynamic lunges", "block": "Warmup (10 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 6, "name": "Box jumps", "block": "Block A — Plyometrics (15 min)", "targetSets": "5", "targetReps": "3", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "Quality > fatigue" },
+        { "sortOrder": 7, "name": "Lateral bounds", "block": "Block A — Plyometrics (15 min)", "targetSets": "3", "targetReps": "6/side", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 8, "name": "Depth drops", "block": "Block A — Plyometrics (15 min)", "targetSets": "3", "targetReps": "5", "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": null },
+        { "sortOrder": 9, "name": "Agility (choose 2)", "block": "Block B — Agility (15 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "Shuttle 5-10-5 ×5 · Cone drill ×5 · Reaction drill ×10 · Fast feet ×5 rounds" },
+        { "sortOrder": 10, "name": "Fun finisher", "block": "Block C — Fun (10–15 min)", "targetSets": null, "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "Find a workout online you want to try — go for it!" }
       ]
     },
     {
@@ -96,11 +110,11 @@
       "title": "Lift C — Pull-up Progression + Legs",
       "subtitle": "EMOM pull-up volume · Leg strength · Upper body balance",
       "exercises": [
-        { "sortOrder": 1, "name": "Pull-ups — EMOM", "block": null, "targetSets": "10 min", "targetReps": "1–3/min", "tracksWeight": true, "isPriority": true, "notesHint": "1–3 reps every minute for 10 min" },
-        { "sortOrder": 2, "name": "Front Squat", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 3, "name": "Bulgarian Split Squat", "block": null, "targetSets": "3", "targetReps": "8", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 4, "name": "Chest-Supported Row", "block": null, "targetSets": "3", "targetReps": "10", "tracksWeight": true, "isPriority": false, "notesHint": null },
-        { "sortOrder": 5, "name": "Hand Release Push-ups", "block": null, "targetSets": "2–3", "targetReps": null, "tracksWeight": false, "isPriority": false, "notesHint": "2–3 sets" }
+        { "sortOrder": 1, "name": "Pull-ups — EMOM", "block": null, "targetSets": "10 min", "targetReps": "1–3/min", "tracksWeight": false, "loggingMode": "bodyweight_sets", "isPriority": true, "notesHint": "1–3 reps every minute for 10 min" },
+        { "sortOrder": 2, "name": "Front Squat", "block": null, "targetSets": "3", "targetReps": "5", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 3, "name": "Bulgarian Split Squat", "block": null, "targetSets": "3", "targetReps": "8", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 4, "name": "Chest-Supported Row", "block": null, "targetSets": "3", "targetReps": "10", "tracksWeight": true, "loggingMode": "weighted_sets", "isPriority": false, "notesHint": null },
+        { "sortOrder": 5, "name": "Hand Release Push-ups", "block": null, "targetSets": "2–3", "targetReps": null, "tracksWeight": false, "loggingMode": "completion_only", "isPriority": false, "notesHint": "2–3 sets" }
       ]
     }
   ]

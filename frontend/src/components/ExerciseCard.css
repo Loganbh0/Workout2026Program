@@ -80,11 +80,11 @@
   color: var(--text-tertiary);
 }
 
-.exercise__inputs {
+.exercise__sets {
   margin-top: 14px;
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
 .field {

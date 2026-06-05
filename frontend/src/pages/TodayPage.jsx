@@ -6,6 +6,7 @@ import { ProgressCard, StatsCard } from '../components/Cards.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import ExertionPicker from '../components/ExertionPicker.jsx';
 import { DumbbellIcon, CheckIcon } from '../components/Icons.jsx';
+import { parseSetCount, emptySets, resolveLoggingMode } from '../setCount.js';
 
 const todayLabel = () =>
   new Date().toLocaleDateString(undefined, {
@@ -14,10 +15,51 @@ const todayLabel = () =>
     day: 'numeric',
   });
 
+function normalizeVariantOptions(exercise) {
+  const raw = exercise.variant_options;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
+function initExerciseValue(exercise) {
+  const setCount = parseSetCount(exercise.target_sets);
+  const variantOptions = normalizeVariantOptions(exercise);
+  const variantKey =
+    exercise.prefill?.variantKey ||
+    (exercise.logging_mode === 'variant' ? variantOptions[0]?.key ?? null : null);
+  const mode = resolveLoggingMode(exercise, variantKey);
+  const showSets = mode !== 'completion_only';
+
+  let sets = emptySets(setCount);
+  if (showSets && exercise.prefill?.sets?.length) {
+    sets = emptySets(setCount).map((row, i) => ({
+      ...row,
+      ...(exercise.prefill.sets[i] || {}),
+      setNumber: i + 1,
+    }));
+  }
+
+  return {
+    completed: false,
+    variantKey,
+    sets: showSets ? sets : [],
+  };
+}
+
+function formatStartLabel(startDate) {
+  const d = new Date(`${startDate}T12:00:00`);
+  return `Starts ${d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`;
+}
+
 export default function TodayPage() {
   const [today, setToday] = useState(null);
   const [stats, setStats] = useState(null);
-  const [day, setDay] = useState(null); // prefill day (with exercises + prefill)
+  const [day, setDay] = useState(null);
   const [values, setValues] = useState({});
   const [exertion, setExertion] = useState(null);
   const [notes, setNotes] = useState('');
@@ -41,11 +83,7 @@ export default function TodayPage() {
           setDay(d);
           const init = {};
           for (const ex of d.exercises) {
-            init[ex.id] = {
-              weightLbs: ex.prefill?.weightLbs ?? null,
-              reps: ex.prefill?.reps ?? null,
-              completed: false,
-            };
+            init[ex.id] = initExerciseValue(ex);
           }
           setValues(init);
         }
@@ -80,13 +118,25 @@ export default function TodayPage() {
     setSaving(true);
     setError(null);
     try {
-      const logs = day.exercises.map((ex) => ({
-        exerciseName: ex.name,
-        sortOrder: ex.sort_order,
-        weightLbs: values[ex.id]?.weightLbs ?? null,
-        reps: values[ex.id]?.reps ?? null,
-        completed: values[ex.id]?.completed ?? false,
-      }));
+      const logs = day.exercises.map((ex) => {
+        const v = values[ex.id] || {};
+        const mode = resolveLoggingMode(ex, v.variantKey);
+        return {
+          exerciseName: ex.name,
+          sortOrder: ex.sort_order,
+          completed: v.completed ?? false,
+          variantKey: v.variantKey ?? null,
+          sets:
+            mode === 'completion_only'
+              ? []
+              : (v.sets || []).map((s) => ({
+                  setNumber: s.setNumber,
+                  weightLbs: s.weightLbs ?? null,
+                  reps: s.reps ?? null,
+                  assistedBand: s.assistedBand ?? false,
+                })),
+        };
+      });
       await api.createSession({
         workoutDate: localIsoDate(),
         dayNumber: today.dayNumber,
@@ -120,7 +170,7 @@ export default function TodayPage() {
       <>
         <TopNav title="Today" />
         <div className="screen">
-          <div className="empty">Couldn’t reach the server.<br />{error}</div>
+          <div className="empty">Couldn't reach the server.<br />{error}</div>
         </div>
       </>
     );
@@ -135,6 +185,13 @@ export default function TodayPage() {
   const totalWorkouts = stats?.totalWorkouts ?? 40;
   const completion = stats?.completion ?? 0;
 
+  const progressLabel =
+    stats?.programStatus === 'pending' && stats?.startDate
+      ? formatStartLabel(stats.startDate)
+      : stats?.currentWeek
+      ? `Week ${stats.currentWeek} of ${stats.durationWeeks}`
+      : 'Progress';
+
   return (
     <>
       <TopNav title="Today" right={<span className="dim" style={{ fontSize: 13 }}>{todayLabel()}</span>} />
@@ -145,7 +202,7 @@ export default function TodayPage() {
 
         <div className="section">
           <ProgressCard
-            label={stats?.currentWeek ? `Week ${stats.currentWeek} of ${stats.durationWeeks}` : 'Progress'}
+            label={progressLabel}
             count={`${checkIns}/${totalWorkouts} workouts`}
             value={completion}
           />
@@ -172,7 +229,13 @@ export default function TodayPage() {
                     <ExerciseCard
                       key={ex.id}
                       exercise={ex}
-                      value={values[ex.id] || { weightLbs: null, reps: null, completed: false }}
+                      value={
+                        values[ex.id] || {
+                          completed: false,
+                          variantKey: null,
+                          sets: [],
+                        }
+                      }
                       onChange={(v) => setValues((prev) => ({ ...prev, [ex.id]: v }))}
                     />
                   ))}

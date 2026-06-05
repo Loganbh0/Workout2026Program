@@ -3,6 +3,9 @@ import { query, withTransaction } from './db.js';
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const WEEKDAY_TO_DAYNUMBER = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
 
+const PROGRAM_EXERCISE_COLS = `id, sort_order, name, block, target_sets, target_reps,
+            tracks_weight, is_priority, notes_hint, logging_mode, variant_options`;
+
 export async function getSettings() {
   const { rows } = await query('select * from app_settings where id = 1');
   return rows[0] || null;
@@ -29,8 +32,7 @@ export async function getProgramDay(dayNumber) {
   if (!dayRows[0]) return null;
   const day = dayRows[0];
   const { rows: exercises } = await query(
-    `select id, sort_order, name, block, target_sets, target_reps,
-            tracks_weight, is_priority, notes_hint
+    `select ${PROGRAM_EXERCISE_COLS}
        from program_exercises
       where day_id = $1
       order by sort_order`,
@@ -53,15 +55,40 @@ export async function resolveToday(isoDate) {
   return { mode: 'workout', weekday, dayNumber, date: toIso(date), programDay };
 }
 
-// Batch pre-fill: for each exercise on a day, return the most recent logged
-// weight/reps for that exercise (across any session of the same day_number).
+async function fetchSetsForLogIds(logIds) {
+  if (!logIds.length) return new Map();
+  const { rows } = await query(
+    `select id, exercise_log_id, set_number, weight_lbs, reps, assisted_band
+       from exercise_set_logs
+      where exercise_log_id = any($1::bigint[])
+      order by set_number`,
+    [logIds]
+  );
+  const byLog = new Map();
+  for (const row of rows) {
+    if (!byLog.has(row.exercise_log_id)) byLog.set(row.exercise_log_id, []);
+    byLog.get(row.exercise_log_id).push(row);
+  }
+  return byLog;
+}
+
+function mapSets(rows) {
+  return (rows || []).map((s) => ({
+    setNumber: s.set_number,
+    weightLbs: s.weight_lbs != null ? Number(s.weight_lbs) : null,
+    reps: s.reps != null ? Number(s.reps) : null,
+    assistedBand: Boolean(s.assisted_band),
+  }));
+}
+
+// Batch pre-fill: for each exercise on a day, return the most recent logged sets.
 export async function getPrefillForDay(dayNumber) {
   const day = await getProgramDay(dayNumber);
   if (!day) return null;
 
   const { rows: last } = await query(
     `select distinct on (el.exercise_name)
-            el.exercise_name, el.weight_lbs, el.reps, ws.workout_date
+            el.id, el.exercise_name, el.variant_key, ws.workout_date
        from exercise_logs el
        join workout_sessions ws on ws.id = el.session_id
       where ws.day_number = $1
@@ -69,14 +96,21 @@ export async function getPrefillForDay(dayNumber) {
     [dayNumber]
   );
   const lastByName = new Map(last.map((r) => [r.exercise_name, r]));
+  const setsByLog = await fetchSetsForLogIds(last.map((r) => r.id));
 
   const exercises = day.exercises.map((ex) => {
     const prev = lastByName.get(ex.name);
+    const setRows = prev ? setsByLog.get(prev.id) : null;
     return {
       ...ex,
       prefill: prev
-        ? { weightLbs: prev.weight_lbs, reps: prev.reps, fromDate: prev.workout_date, source: 'history' }
-        : { weightLbs: null, reps: null, fromDate: null, source: 'template' },
+        ? {
+            variantKey: prev.variant_key,
+            sets: mapSets(setRows),
+            fromDate: prev.workout_date,
+            source: 'history',
+          }
+        : { variantKey: null, sets: [], fromDate: null, source: 'template' },
     };
   });
 
@@ -118,13 +152,18 @@ export async function getSession(id) {
   );
   if (!sessionRows[0]) return null;
   const { rows: logs } = await query(
-    `select id, exercise_name, sort_order, weight_lbs, reps, completed
+    `select id, exercise_name, sort_order, weight_lbs, reps, completed, variant_key
        from exercise_logs
       where session_id = $1
       order by sort_order, id`,
     [id]
   );
-  return { ...sessionRows[0], logs };
+  const setsByLog = await fetchSetsForLogIds(logs.map((l) => l.id));
+  const logsWithSets = logs.map((log) => ({
+    ...log,
+    sets: mapSets(setsByLog.get(log.id)),
+  }));
+  return { ...sessionRows[0], logs: logsWithSets };
 }
 
 export async function createSession({ workoutDate, dayNumber, exertion, sessionNotes, logs }) {
@@ -138,35 +177,55 @@ export async function createSession({ workoutDate, dayNumber, exertion, sessionN
     const id = rows[0].id;
 
     for (const log of logs || []) {
-      await client.query(
-        `insert into exercise_logs (session_id, exercise_name, sort_order, weight_lbs, reps, completed)
-         values ($1, $2, $3, $4, $5, $6)`,
+      const { rows: logRows } = await client.query(
+        `insert into exercise_logs (session_id, exercise_name, sort_order, completed, variant_key)
+         values ($1, $2, $3, $4, $5)
+         returning id`,
         [
           id,
           log.exerciseName,
           log.sortOrder ?? 0,
-          log.weightLbs ?? null,
-          log.reps ?? null,
           log.completed ?? false,
+          log.variantKey ?? null,
         ]
       );
+      const logId = logRows[0].id;
+
+      for (const set of log.sets || []) {
+        await client.query(
+          `insert into exercise_set_logs (exercise_log_id, set_number, weight_lbs, reps, assisted_band)
+           values ($1, $2, $3, $4, $5)`,
+          [
+            logId,
+            set.setNumber,
+            set.weightLbs ?? null,
+            set.reps ?? null,
+            set.assistedBand ?? false,
+          ]
+        );
+      }
     }
 
     return id;
   });
 
-  // Read back after the transaction has committed.
   return getSession(sessionId);
 }
 
-// Time series for one exercise (for progress charts).
+// Time series for one exercise (for progress charts) — best set per session date.
 export async function getExerciseProgress(name) {
   const { rows } = await query(
-    `select ws.workout_date, el.weight_lbs, el.reps, ws.exertion
+    `select ws.workout_date,
+            max(esl.weight_lbs) as weight_lbs,
+            max(esl.reps) as reps,
+            ws.exertion,
+            bool_or(esl.assisted_band) as assisted_band
        from exercise_logs el
        join workout_sessions ws on ws.id = el.session_id
+       left join exercise_set_logs esl on esl.exercise_log_id = el.id
       where el.exercise_name = $1
-      order by ws.workout_date asc, el.id asc`,
+      group by ws.id, ws.workout_date, ws.exertion
+      order by ws.workout_date asc`,
     [name]
   );
   return rows;
@@ -182,10 +241,19 @@ export async function listLoggedExercises() {
 
 export async function getStats() {
   const settings = await getSettings();
-  const { rows: countRows } = await query(
-    'select count(*)::int as total from workout_sessions'
-  );
-  const total = countRows[0].total;
+  const startDate = settings?.start_date ? toIso(settings.start_date) : null;
+  const now = new Date();
+  const start = startDate ? new Date(`${startDate}T12:00:00`) : null;
+  const beforeStart = start && now < start;
+
+  let total = 0;
+  if (startDate && !beforeStart) {
+    const { rows: countRows } = await query(
+      'select count(*)::int as total from workout_sessions where workout_date >= $1',
+      [startDate]
+    );
+    total = countRows[0].total;
+  }
 
   const { rows: dateRows } = await query(
     'select distinct workout_date from workout_sessions order by workout_date desc'
@@ -196,11 +264,20 @@ export async function getStats() {
   const completion = totalWorkouts ? Math.min(100, Math.round((total / totalWorkouts) * 100)) : 0;
 
   let currentWeek = null;
-  if (settings?.start_date) {
-    const start = new Date(`${toIso(settings.start_date)}T12:00:00`);
-    const now = new Date();
-    const diffDays = Math.floor((now - start) / 86400000);
-    currentWeek = Math.min(settings.duration_weeks, Math.max(1, Math.floor(diffDays / 7) + 1));
+  let programStatus = 'active';
+  let daysUntilStart = null;
+
+  if (startDate) {
+    if (beforeStart) {
+      programStatus = 'pending';
+      daysUntilStart = Math.ceil((start - now) / 86400000);
+    } else {
+      const diffDays = Math.floor((now - start) / 86400000);
+      currentWeek = Math.min(
+        settings.duration_weeks,
+        Math.floor(diffDays / 7) + 1
+      );
+    }
   }
 
   return {
@@ -210,7 +287,9 @@ export async function getStats() {
     totalWorkouts,
     currentWeek,
     durationWeeks: settings?.duration_weeks || 8,
-    startDate: settings?.start_date ? toIso(settings.start_date) : null,
+    startDate,
+    programStatus,
+    daysUntilStart,
   };
 }
 

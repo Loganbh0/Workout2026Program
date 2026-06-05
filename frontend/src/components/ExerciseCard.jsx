@@ -1,4 +1,8 @@
+import { useMemo } from 'react';
 import { CheckIcon } from './Icons.jsx';
+import SetRow from './SetRow.jsx';
+import VariantPicker from './VariantPicker.jsx';
+import { parseSetCount, emptySets, resolveLoggingMode } from '../setCount.js';
 import './ExerciseCard.css';
 
 function targetText(ex) {
@@ -10,11 +14,50 @@ function targetText(ex) {
   return null;
 }
 
+function normalizeVariantOptions(exercise) {
+  const raw = exercise.variant_options;
+  if (!raw) return [];
+  if (Array.isArray(raw)) return raw;
+  try {
+    return typeof raw === 'string' ? JSON.parse(raw) : [];
+  } catch {
+    return [];
+  }
+}
+
 export default function ExerciseCard({ exercise, value, onChange }) {
   const target = targetText(exercise);
-  const tracksWeight = exercise.tracks_weight;
+  const variantOptions = normalizeVariantOptions(exercise);
+  const setCount = parseSetCount(exercise.target_sets);
+  const mode = resolveLoggingMode(exercise, value.variantKey);
+  const showSets = mode !== 'completion_only';
+
+  const sets = useMemo(() => {
+    if (!showSets) return [];
+    const current = value.sets || [];
+    if (current.length === setCount) return current;
+    const next = emptySets(setCount);
+    for (let i = 0; i < Math.min(current.length, setCount); i++) {
+      next[i] = { ...next[i], ...current[i], setNumber: i + 1 };
+    }
+    return next;
+  }, [value.sets, setCount, showSets]);
 
   const update = (patch) => onChange({ ...value, ...patch });
+
+  const handleVariantChange = (variantKey) => {
+    onChange({
+      completed: value.completed ?? false,
+      variantKey,
+      sets: emptySets(setCount),
+    });
+  };
+
+  const handleSetChange = (index, setValue) => {
+    const next = [...sets];
+    next[index] = setValue;
+    update({ sets: next });
+  };
 
   return (
     <div className={`exercise${value.completed ? ' exercise--done' : ''}`}>
@@ -40,34 +83,25 @@ export default function ExerciseCard({ exercise, value, onChange }) {
         </div>
       )}
 
-      {tracksWeight && (
-        <div className="exercise__inputs">
-          <label className="field">
-            <span className="field__label">Weight (lbs)</span>
-            <input
-              type="number"
-              inputMode="decimal"
-              step="0.5"
-              placeholder="—"
-              value={value.weightLbs ?? ''}
-              onChange={(e) =>
-                update({ weightLbs: e.target.value === '' ? null : Number(e.target.value) })
-              }
+      {exercise.logging_mode === 'variant' && (
+        <VariantPicker
+          options={variantOptions}
+          value={value.variantKey || variantOptions[0]?.key}
+          onChange={handleVariantChange}
+        />
+      )}
+
+      {showSets && (
+        <div className="exercise__sets">
+          {sets.map((set, i) => (
+            <SetRow
+              key={set.setNumber}
+              setNumber={set.setNumber}
+              mode={mode}
+              value={set}
+              onChange={(v) => handleSetChange(i, v)}
             />
-          </label>
-          <label className="field">
-            <span className="field__label">Reps</span>
-            <input
-              type="number"
-              inputMode="numeric"
-              step="1"
-              placeholder="—"
-              value={value.reps ?? ''}
-              onChange={(e) =>
-                update({ reps: e.target.value === '' ? null : Number(e.target.value) })
-              }
-            />
-          </label>
+          ))}
         </div>
       )}
     </div>

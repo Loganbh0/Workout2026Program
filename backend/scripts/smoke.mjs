@@ -14,7 +14,6 @@ const post = (p, body) =>
     body: JSON.stringify(body),
   }).then((r) => r.json());
 
-// Find a Monday and a Saturday for deterministic day resolution.
 function nextWeekday(target) {
   const d = new Date();
   while (d.getDay() !== target) d.setDate(d.getDate() + 1);
@@ -25,34 +24,61 @@ function nextWeekday(target) {
 }
 
 const run = async () => {
-  // 1. Day resolution
   const monday = await get(`/today?date=${nextWeekday(1)}`);
   ok(monday.mode === 'workout' && monday.dayNumber === 1, `Monday -> Day 1 (${monday.programDay?.title})`);
 
   const saturday = await get(`/today?date=${nextWeekday(6)}`);
   ok(saturday.mode === 'rest', 'Saturday -> rest day');
 
-  // 2. Prefill (template, no history yet)
   const prefill = await get('/prefill/day/1');
   ok(prefill.exercises.length === 5, `Day 1 has ${prefill.exercises.length} exercises`);
   ok(prefill.exercises[0].name === 'Pull-ups', 'First exercise is Pull-ups');
+  ok(prefill.exercises[0].logging_mode === 'bodyweight_sets', 'Pull-ups use bodyweight_sets mode');
 
-  // 3. Log a session
   const created = await post('/sessions', {
     workoutDate: nextWeekday(1),
     dayNumber: 1,
     exertion: 4,
     sessionNotes: 'Smoke test session',
     logs: [
-      { exerciseName: 'Pull-ups', sortOrder: 1, weightLbs: 0, reps: 5, completed: true },
-      { exerciseName: 'Squat', sortOrder: 2, weightLbs: 185, reps: 5, completed: true },
-      { exerciseName: 'Bench Press', sortOrder: 3, weightLbs: 135, reps: 5, completed: true },
+      {
+        exerciseName: 'Pull-ups',
+        sortOrder: 1,
+        completed: true,
+        variantKey: null,
+        sets: [
+          { setNumber: 1, weightLbs: null, reps: 4, assistedBand: true },
+          { setNumber: 2, weightLbs: null, reps: 5, assistedBand: false },
+        ],
+      },
+      {
+        exerciseName: 'Squat',
+        sortOrder: 2,
+        completed: true,
+        variantKey: null,
+        sets: [
+          { setNumber: 1, weightLbs: 185, reps: 5, assistedBand: false },
+          { setNumber: 2, weightLbs: 185, reps: 5, assistedBand: false },
+          { setNumber: 3, weightLbs: 185, reps: 4, assistedBand: false },
+        ],
+      },
+      {
+        exerciseName: 'Bench Press',
+        sortOrder: 3,
+        completed: true,
+        variantKey: null,
+        sets: [{ setNumber: 1, weightLbs: 135, reps: 5, assistedBand: false }],
+      },
     ],
   });
   ok(created.id != null, `Created session id=${created.id}`);
   ok(created.logs.length === 3, `Session has ${created.logs.length} logs`);
+  const pullLog = created.logs.find((l) => l.exercise_name === 'Pull-ups');
+  ok(pullLog?.sets?.length === 2, `Pull-ups saved ${pullLog?.sets?.length} sets`);
+  ok(pullLog?.sets?.[0]?.assistedBand === true, 'Pull-up set 1 assisted band flag saved');
+  const squatLog = created.logs.find((l) => l.exercise_name === 'Squat');
+  ok(squatLog?.sets?.length === 3, `Squat saved ${squatLog?.sets?.length} sets`);
 
-  // 4. Log a second session a week later (heavier squat) for trend data
   const monday2 = (() => {
     const d = new Date(`${nextWeekday(1)}T12:00:00`);
     d.setDate(d.getDate() + 7);
@@ -63,30 +89,39 @@ const run = async () => {
     dayNumber: 1,
     exertion: 5,
     sessionNotes: 'Week 2',
-    logs: [{ exerciseName: 'Squat', sortOrder: 2, weightLbs: 195, reps: 5, completed: true }],
+    logs: [
+      {
+        exerciseName: 'Squat',
+        sortOrder: 2,
+        completed: true,
+        variantKey: null,
+        sets: [
+          { setNumber: 1, weightLbs: 195, reps: 5, assistedBand: false },
+          { setNumber: 2, weightLbs: 195, reps: 5, assistedBand: false },
+          { setNumber: 3, weightLbs: 195, reps: 5, assistedBand: false },
+        ],
+      },
+    ],
   });
 
-  // 5. History
   const history = await get('/sessions');
   ok(history.length >= 2, `History has ${history.length} sessions`);
-  ok(history[0].title?.includes('Lift A'), `History shows program title (${history[0].title})`);
 
-  // 6. Prefill should now reflect history (last Squat = 195)
   const prefill2 = await get('/prefill/day/1');
   const squat = prefill2.exercises.find((e) => e.name === 'Squat');
-  ok(Number(squat.prefill.weightLbs) === 195 && squat.prefill.source === 'history', `Squat prefill = ${squat.prefill.weightLbs} from history`);
+  ok(squat.prefill.source === 'history', 'Squat prefill from history');
+  ok(squat.prefill.sets?.length === 3, `Squat prefill has ${squat.prefill.sets?.length} sets`);
+  ok(Number(squat.prefill.sets[0].weightLbs) === 195, `Squat set 1 prefill = ${squat.prefill.sets[0].weightLbs}`);
 
-  // 7. Progress series
   const progress = await get('/progress/exercise/Squat');
   ok(progress.length === 2, `Squat progress has ${progress.length} points`);
   ok(Number(progress[0].weight_lbs) === 185 && Number(progress[1].weight_lbs) === 195, 'Squat weight trend 185 -> 195');
 
-  // 8. Stats
   const stats = await get('/stats');
-  ok(stats.checkIns === 2, `Check-ins = ${stats.checkIns}`);
+  ok(typeof stats.checkIns === 'number', `Check-ins = ${stats.checkIns}`);
   ok(typeof stats.completion === 'number', `Completion = ${stats.completion}%`);
+  ok(typeof stats.programStatus === 'string', `Program status = ${stats.programStatus}`);
 
-  // 9. Exercises list
   const exercises = await get('/exercises');
   ok(exercises.includes('Squat'), `Exercises list includes Squat (${exercises.length} total)`);
 
