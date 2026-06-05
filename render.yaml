@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: workout2026-api
+    runtime: node
+    region: oregon
+    plan: free
+    rootDir: backend
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /health
+    envVars:
+      - key: DATABASE_URL
+        sync: false
+      - key: API_KEY
+        sync: false
+      - key: CORS_ORIGIN
+        sync: false

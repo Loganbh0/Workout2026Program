@@ -1,0 +1,39 @@
+:root {
+  /* Color palette — monochrome dark */
+  --bg: #000000;
+  --card: #151515;
+  --card-elevated: #1c1c1e;
+  --border-track: #2a2a2c;
+  --hairline: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.04);
+
+  --text-primary: #ffffff;
+  --text-secondary: #a1a1a6;
+  --text-tertiary: #6e6e73;
+
+  /* Typography */
+  --font-sans: -apple-system, BlinkMacSystemFont, "SF Pro Display", "Inter",
+    "Helvetica Neue", Arial, sans-serif;
+
+  --fs-nav: 16px;
+  --fs-heading: 30px;
+  --fs-body: 16px;
+  --fs-label: 11px;
+  --fs-card-label: 15px;
+  --fs-stat: 28px;
+  --fs-caption: 13px;
+
+  /* Spacing */
+  --pad-screen: 20px;
+  --pad-card: 16px;
+  --gap-section: 28px;
+
+  /* Radius */
+  --radius-card: 12px;
+  --radius-button: 13px;
+  --radius-pill: 999px;
+
+  /* Motion */
+  --press-scale: 0.98;
+  --ease: cubic-bezier(0.22, 0.61, 0.36, 1);
+}

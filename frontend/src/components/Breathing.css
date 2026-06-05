@@ -1,0 +1,74 @@
+.breathing {
+  position: relative;
+  width: 220px;
+  height: 220px;
+  display: grid;
+  place-items: center;
+}
+
+.breathing__ring,
+.breathing__core {
+  position: absolute;
+  border-radius: 50%;
+  will-change: transform, opacity;
+}
+
+.breathing__ring {
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  animation: breathe 8s ease-in-out infinite;
+}
+
+.breathing__ring--outer {
+  width: 220px;
+  height: 220px;
+  opacity: 0.35;
+}
+
+.breathing__ring--mid {
+  width: 150px;
+  height: 150px;
+  opacity: 0.55;
+  animation-delay: 0.15s;
+}
+
+.breathing__core {
+  width: 86px;
+  height: 86px;
+  background: radial-gradient(
+    circle at 50% 50%,
+    rgba(255, 255, 255, 0.9),
+    rgba(255, 255, 255, 0.25)
+  );
+  animation: breathe-core 8s ease-in-out infinite;
+}
+
+@keyframes breathe {
+  0%,
+  100% {
+    transform: scale(0.85);
+    opacity: 0.3;
+  }
+  50% {
+    transform: scale(1.05);
+    opacity: 0.6;
+  }
+}
+
+@keyframes breathe-core {
+  0%,
+  100% {
+    transform: scale(0.7);
+    opacity: 0.55;
+  }
+  50% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .breathing__ring,
+  .breathing__core {
+    animation: none;
+  }
+}

@@ -1,0 +1,137 @@
+.exercise {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+  border-radius: var(--radius-card);
+  padding: var(--pad-card);
+  transition: border-color 0.2s var(--ease);
+}
+
+.exercise--done {
+  border-color: rgba(255, 255, 255, 0.16);
+}
+
+.exercise__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exercise__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.exercise__name {
+  font-size: var(--fs-card-label);
+  font-weight: 600;
+}
+
+.exercise__badge {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-pill);
+  padding: 2px 7px;
+  white-space: nowrap;
+}
+
+.exercise__check {
+  flex-shrink: 0;
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border-track);
+  display: grid;
+  place-items: center;
+  color: #000;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease),
+    transform 0.12s var(--ease);
+}
+.exercise__check:active {
+  transform: scale(0.9);
+}
+.exercise__check--on {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+}
+
+.exercise__meta {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  align-items: baseline;
+}
+
+.exercise__target {
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.exercise__hint {
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+}
+
+.exercise__inputs {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.field__label {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-tertiary);
+}
+
+.field input {
+  height: 46px;
+  border-radius: 10px;
+  background: var(--card-elevated);
+  border: 1px solid var(--card-border);
+  color: var(--text-primary);
+  font-size: 17px;
+  font-weight: 600;
+  padding: 0 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color 0.2s var(--ease);
+}
+.field input:focus {
+  border-color: rgba(255, 255, 255, 0.22);
+}
+/* Hide number spinners for a cleaner look */
+.field input::-webkit-outer-spin-button,
+.field input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+.field input[type='number'] {
+  -moz-appearance: textfield;
+}
+
+.block-label {
+  font-size: var(--fs-label);
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: var(--text-tertiary);
+  margin: 18px 2px 10px;
+}
