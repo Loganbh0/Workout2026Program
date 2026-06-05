@@ -6,13 +6,16 @@ import HistoryPage from './pages/HistoryPage.jsx';
 import SessionDetailPage from './pages/SessionDetailPage.jsx';
 import ProgressPage from './pages/ProgressPage.jsx';
 import ProgramDetailPage from './pages/ProgramDetailPage.jsx';
+import CreateProgramPage from './pages/CreateProgramPage.jsx';
 
 export default function App() {
   return (
     <div className="app">
       <Routes>
-        <Route path="/" element={<HomePage />} />
-        <Route path="/today" element={<TodayPage />} />
+        <Route path="/" element={<TodayPage />} />
+        <Route path="/today" element={<Navigate to="/" replace />} />
+        <Route path="/home" element={<HomePage />} />
+        <Route path="/programs/new" element={<CreateProgramPage />} />
         <Route path="/programs/:id" element={<ProgramDetailPage />} />
         <Route path="/history" element={<HistoryPage />} />
         <Route path="/history/:id" element={<SessionDetailPage />} />

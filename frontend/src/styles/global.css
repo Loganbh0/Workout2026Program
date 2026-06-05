@@ -398,6 +398,54 @@ a {
   font-size: var(--fs-caption);
 }
 
+.day-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.day-chip {
+  min-width: 52px;
+  height: 36px;
+  padding: 0 12px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-secondary);
+  font-size: var(--fs-caption);
+  font-weight: 600;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.day-chip--on {
+  background: var(--card-elevated);
+  color: var(--text-primary);
+  border-color: rgba(255, 255, 255, 0.2);
+}
+
+.builder-exercise {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px solid var(--hairline);
+  border-radius: var(--radius-card);
+  background: var(--card);
+}
+
+.builder-exercise__row {
+  display: grid;
+  grid-template-columns: 88px 1fr;
+  gap: 8px;
+}
+
+.builder-exercise__remove {
+  align-self: flex-start;
+  font-size: var(--fs-caption);
+  color: var(--text-tertiary);
+  padding: 4px 0;
+}
+
 .toast {
   position: fixed;
   bottom: calc(140px + env(safe-area-inset-bottom));

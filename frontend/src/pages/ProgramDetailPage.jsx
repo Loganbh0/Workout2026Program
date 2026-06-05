@@ -2,16 +2,9 @@ import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
-import { Card } from '../components/Cards.jsx';
+import ProgramDayAccordion from '../components/ProgramDayAccordion.jsx';
+import StartDateModal from '../components/StartDateModal.jsx';
 import { ChevronLeftIcon, PencilIcon } from '../components/Icons.jsx';
-
-const WEEKDAY_LABEL = {
-  monday: 'Monday',
-  tuesday: 'Tuesday',
-  wednesday: 'Wednesday',
-  thursday: 'Thursday',
-  friday: 'Friday',
-};
 
 export default function ProgramDetailPage() {
   const { id } = useParams();
@@ -20,6 +13,7 @@ export default function ProgramDetailPage() {
   const [error, setError] = useState(null);
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
+  const [showStartDate, setShowStartDate] = useState(false);
   const [activating, setActivating] = useState(false);
 
   useEffect(() => {
@@ -40,7 +34,7 @@ export default function ProgramDetailPage() {
   const back = (
     <button
       type="button"
-      onClick={() => navigate('/')}
+      onClick={() => navigate('/home')}
       aria-label="Back"
       style={{ display: 'flex', color: 'var(--text-secondary)' }}
     >
@@ -62,12 +56,13 @@ export default function ProgramDetailPage() {
     }
   }
 
-  async function handleActivate() {
+  async function handleActivateConfirm(startDate) {
     setActivating(true);
     setError(null);
     try {
-      const updated = await api.activateProgram(id);
+      const updated = await api.activateProgram(id, { startDate });
       setProgram(updated);
+      setShowStartDate(false);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -126,6 +121,7 @@ export default function ProgramDetailPage() {
 
             <p className="subtitle">
               {program.durationWeeks} weeks · {program.sessionsPerWeek} sessions/week
+              {program.startDate ? ` · Starts ${program.startDate}` : ''}
             </p>
 
             <div className="section">
@@ -133,32 +129,28 @@ export default function ProgramDetailPage() {
                 type="button"
                 className={`btn${program.isActive ? ' btn--muted' : ''}`}
                 disabled={program.isActive || activating}
-                onClick={handleActivate}
+                onClick={() => setShowStartDate(true)}
               >
-                {program.isActive ? 'ACTIVE' : activating ? 'Activating…' : 'ACTIVATE'}
+                {program.isActive ? 'ACTIVE' : 'ACTIVATE'}
               </button>
             </div>
 
             <div className="section">
               <p className="section-label">Weekly plan</p>
-              <Card>
-                {program.days.map((day) => (
-                  <div className="detail-row detail-row--stacked" key={day.id}>
-                    <span className="detail-row__label">
-                      {WEEKDAY_LABEL[day.weekday] || day.weekday} · Day {day.dayNumber}
-                    </span>
-                    <span className="detail-row__value">
-                      {day.title}
-                      {day.subtitle ? ` — ${day.subtitle}` : ''}
-                      {day.exerciseCount ? ` (${day.exerciseCount} exercises)` : ''}
-                    </span>
-                  </div>
-                ))}
-              </Card>
+              {program.days.map((day) => (
+                <ProgramDayAccordion key={day.id} day={day} />
+              ))}
             </div>
           </>
         )}
       </div>
+
+      <StartDateModal
+        open={showStartDate && program && !program.isActive}
+        onClose={() => setShowStartDate(false)}
+        onConfirm={handleActivateConfirm}
+        loading={activating}
+      />
     </>
   );
 }

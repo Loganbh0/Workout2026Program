@@ -17,6 +17,7 @@ import {
   getStats,
   listPrograms,
   getProgram,
+  createProgram,
   updateProgram,
   activateProgram,
   getActiveProgram,
@@ -56,6 +57,11 @@ api.get('/programs', asyncHandler(async (_req, res) => {
   res.json(await listPrograms());
 }));
 
+api.post('/programs', asyncHandler(async (req, res) => {
+  const program = await createProgram(req.body);
+  res.status(201).json(program);
+}));
+
 api.get('/programs/:id', asyncHandler(async (req, res) => {
   const program = await getProgram(Number(req.params.id));
   if (!program) return res.status(404).json({ error: 'Program not found' });
@@ -70,7 +76,8 @@ api.put('/programs/:id', asyncHandler(async (req, res) => {
 }));
 
 api.post('/programs/:id/activate', asyncHandler(async (req, res) => {
-  const program = await activateProgram(Number(req.params.id));
+  const { startDate } = req.body || {};
+  const program = await activateProgram(Number(req.params.id), { startDate });
   res.json(program);
 }));
 

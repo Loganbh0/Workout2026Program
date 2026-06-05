@@ -37,9 +37,11 @@ export const api = {
   updateSettings: (body) => request('/settings', { method: 'PUT', body: JSON.stringify(body) }),
   programs: () => request('/programs'),
   program: (id) => request(`/programs/${id}`),
+  createProgram: (body) => request('/programs', { method: 'POST', body: JSON.stringify(body) }),
   updateProgram: (id, body) =>
     request(`/programs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  activateProgram: (id) => request(`/programs/${id}/activate`, { method: 'POST' }),
+  activateProgram: (id, body) =>
+    request(`/programs/${id}/activate`, { method: 'POST', body: JSON.stringify(body) }),
   programDay: (dayNumber) => request(`/program/day/${dayNumber}`),
   prefillDay: (dayNumber) => request(`/prefill/day/${dayNumber}`),
   sessions: (params = {}) => {

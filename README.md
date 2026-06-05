@@ -34,7 +34,7 @@ The program is **data-driven**. Exercises live in [`backend/data/program.json`](
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the migrations (in order) against your project. Either:
-   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0004_programs.sql`, or
+   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0005_flexible_program_days.sql`, or
    - **Supabase CLI:**
      ```bash
      supabase link --project-ref <your-ref>
@@ -149,10 +149,11 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | Method | Route | Purpose |
 |--------|-------|---------|
 | GET | `/programs` | List programs for Home (`id`, `displayName`, `dayCount`, `isActive`) |
-| GET | `/programs/:id` | Program detail + weekly day list |
+| POST | `/programs` | Create program with days + exercises |
+| GET | `/programs/:id` | Program detail + weekly days (includes `exercises[]` per day) |
 | PUT | `/programs/:id` | Rename program (`displayName`) |
-| POST | `/programs/:id/activate` | Set active program (deactivates others) |
-| GET | `/today?date=YYYY-MM-DD` | Resolve day → workout (1–5) or rest; includes `alreadyLogged` |
+| POST | `/programs/:id/activate` | Set active program; body `{ startDate: "YYYY-MM-DD" }` required |
+| GET | `/today?date=YYYY-MM-DD` | Resolve day from active program weekday schedule; includes `alreadyLogged` |
 | GET | `/stats?scope=active\|all` | Streak, check-ins, completion %, current week |
 | GET | `/settings` / PUT `/settings` | Global app settings |
 | GET | `/program/day/:n` | Exercises + targets for a day (active program) |

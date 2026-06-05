@@ -1,11 +1,29 @@
 import { query, withTransaction } from './db.js';
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
-const WEEKDAY_TO_DAYNUMBER = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
+const WEEKDAY_ORDER = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
+const VALID_WEEKDAYS = Object.keys(WEEKDAY_ORDER);
+const VALID_LOGGING_MODES = ['weighted_sets', 'bodyweight_sets', 'completion_only'];
 const TRACKABLE_MODES = ['weighted_sets', 'bodyweight_sets', 'variant'];
 
 const PROGRAM_EXERCISE_COLS = `id, sort_order, name, block, target_sets, target_reps,
             tracks_weight, is_priority, notes_hint, logging_mode, variant_options`;
+
+function mapExercise(row) {
+  return {
+    id: row.id,
+    sortOrder: row.sort_order,
+    name: row.name,
+    block: row.block,
+    targetSets: row.target_sets,
+    targetReps: row.target_reps,
+    tracksWeight: row.tracks_weight,
+    isPriority: row.is_priority,
+    notesHint: row.notes_hint,
+    loggingMode: row.logging_mode,
+    variantOptions: row.variant_options,
+  };
+}
 
 function mapProgram(row) {
   if (!row) return null;
@@ -81,6 +99,22 @@ export async function getProgram(id) {
     [id]
   );
 
+  const dayIds = days.map((d) => d.id);
+  let exercisesByDay = new Map();
+  if (dayIds.length) {
+    const { rows: exercises } = await query(
+      `select ${PROGRAM_EXERCISE_COLS}, day_id
+         from program_exercises
+        where day_id = any($1::bigint[])
+        order by sort_order`,
+      [dayIds]
+    );
+    for (const ex of exercises) {
+      if (!exercisesByDay.has(ex.day_id)) exercisesByDay.set(ex.day_id, []);
+      exercisesByDay.get(ex.day_id).push(mapExercise(ex));
+    }
+  }
+
   return {
     ...mapProgram(programRows[0]),
     days: days.map((d) => ({
@@ -92,6 +126,7 @@ export async function getProgram(id) {
       title: d.title,
       subtitle: d.subtitle,
       exerciseCount: Number(d.exercise_count),
+      exercises: exercisesByDay.get(d.id) || [],
     })),
   };
 }
@@ -108,12 +143,18 @@ export async function updateProgram(id, { displayName }) {
   return mapProgram(rows[0]);
 }
 
-export async function activateProgram(id) {
+export async function activateProgram(id, { startDate } = {}) {
+  if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
+    const err = new Error('startDate is required (YYYY-MM-DD)');
+    err.status = 400;
+    throw err;
+  }
+
   await withTransaction(async (client) => {
     await client.query('update programs set is_active = false where is_active = true');
     const { rows } = await client.query(
-      'update programs set is_active = true where id = $1 returning id',
-      [id]
+      'update programs set is_active = true, start_date = $2 where id = $1 returning id',
+      [id, startDate]
     );
     if (!rows[0]) {
       const err = new Error('Program not found');
@@ -122,6 +163,162 @@ export async function activateProgram(id) {
     }
   });
   return getProgram(id);
+}
+
+function slugify(name) {
+  return String(name)
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 48) || 'program';
+}
+
+async function uniqueSlug(base) {
+  let slug = base;
+  let n = 0;
+  while (true) {
+    const { rows } = await query('select id from programs where slug = $1 limit 1', [slug]);
+    if (!rows.length) return slug;
+    n += 1;
+    slug = `${base}-${n}`;
+  }
+}
+
+function sortDaysByWeekday(days) {
+  return [...days].sort(
+    (a, b) => (WEEKDAY_ORDER[a.weekday] || 99) - (WEEKDAY_ORDER[b.weekday] || 99)
+  );
+}
+
+function validateCreateProgram(body) {
+  const { displayName, durationWeeks, days } = body || {};
+  if (!displayName?.trim()) {
+    const err = new Error('displayName is required');
+    err.status = 400;
+    throw err;
+  }
+  const weeks = Number(durationWeeks);
+  if (!Number.isInteger(weeks) || weeks < 1 || weeks > 52) {
+    const err = new Error('durationWeeks must be an integer between 1 and 52');
+    err.status = 400;
+    throw err;
+  }
+  if (!Array.isArray(days) || days.length < 1) {
+    const err = new Error('At least one training day is required');
+    err.status = 400;
+    throw err;
+  }
+
+  const seenWeekdays = new Set();
+  for (const day of days) {
+    if (!VALID_WEEKDAYS.includes(day.weekday)) {
+      const err = new Error(`Invalid weekday: ${day.weekday}`);
+      err.status = 400;
+      throw err;
+    }
+    if (seenWeekdays.has(day.weekday)) {
+      const err = new Error(`Duplicate weekday: ${day.weekday}`);
+      err.status = 400;
+      throw err;
+    }
+    seenWeekdays.add(day.weekday);
+    if (!day.title?.trim()) {
+      const err = new Error(`Title required for ${day.weekday}`);
+      err.status = 400;
+      throw err;
+    }
+    if (!Array.isArray(day.exercises) || day.exercises.length < 1) {
+      const err = new Error(`At least one exercise required for ${day.weekday}`);
+      err.status = 400;
+      throw err;
+    }
+    for (const ex of day.exercises) {
+      if (!ex.name?.trim()) {
+        const err = new Error('Exercise name is required');
+        err.status = 400;
+        throw err;
+      }
+      if (!ex.targetSets || !String(ex.targetSets).trim()) {
+        const err = new Error(`Sets required for ${ex.name}`);
+        err.status = 400;
+        throw err;
+      }
+      if (!VALID_LOGGING_MODES.includes(ex.loggingMode)) {
+        const err = new Error(`Invalid loggingMode for ${ex.name}`);
+        err.status = 400;
+        throw err;
+      }
+    }
+  }
+
+  return {
+    displayName: displayName.trim(),
+    durationWeeks: weeks,
+    days: sortDaysByWeekday(days),
+  };
+}
+
+export async function createProgram(body) {
+  const { displayName, durationWeeks, days } = validateCreateProgram(body);
+  const sessionsPerWeek = days.length;
+  const totalWorkouts = durationWeeks * sessionsPerWeek;
+  const slug = await uniqueSlug(slugify(displayName));
+
+  const programId = await withTransaction(async (client) => {
+    const { rows: programRows } = await client.query(
+      `insert into programs (
+         display_name, slug, duration_weeks, sessions_per_week, total_workouts, is_active
+       ) values ($1, $2, $3, $4, $5, false)
+       returning id`,
+      [displayName, slug, durationWeeks, sessionsPerWeek, totalWorkouts]
+    );
+    const pid = programRows[0].id;
+
+    for (let i = 0; i < days.length; i++) {
+      const day = days[i];
+      const dayNumber = i + 1;
+      const { rows: dayRows } = await client.query(
+        `insert into program_days (
+           program_id, day_number, weekday, code, type, title, subtitle
+         ) values ($1, $2, $3, $4, 'lift', $5, $6)
+         returning id`,
+        [
+          pid,
+          dayNumber,
+          day.weekday,
+          `custom_day_${dayNumber}`,
+          day.title.trim(),
+          day.subtitle?.trim() || null,
+        ]
+      );
+      const dayId = dayRows[0].id;
+
+      for (let j = 0; j < day.exercises.length; j++) {
+        const ex = day.exercises[j];
+        const tracksWeight = ex.loggingMode === 'weighted_sets';
+        await client.query(
+          `insert into program_exercises (
+             day_id, sort_order, name, target_sets, target_reps,
+             tracks_weight, logging_mode, is_priority
+           ) values ($1, $2, $3, $4, $5, $6, $7, false)`,
+          [
+            dayId,
+            j + 1,
+            ex.name.trim(),
+            String(ex.targetSets).trim(),
+            ex.targetReps?.trim() || null,
+            tracksWeight,
+            ex.loggingMode,
+          ]
+        );
+      }
+    }
+
+    return pid;
+  });
+
+  return getProgram(programId);
 }
 
 export async function getSettings() {
@@ -180,10 +377,14 @@ export async function resolveToday(isoDate) {
   const date = isoDate ? new Date(`${isoDate}T12:00:00`) : new Date();
   const dateIso = toIso(date);
   const weekday = WEEKDAYS[date.getDay()];
-  const dayNumber = WEEKDAY_TO_DAYNUMBER[weekday];
   const alreadyLogged = await isAlreadyLogged(program.id, dateIso);
 
-  if (!dayNumber) {
+  const { rows: dayRows } = await query(
+    'select * from program_days where program_id = $1 and weekday = $2',
+    [program.id, weekday]
+  );
+
+  if (!dayRows[0] || weekday === 'saturday' || weekday === 'sunday') {
     return {
       mode: 'rest',
       weekday,
@@ -193,11 +394,11 @@ export async function resolveToday(isoDate) {
     };
   }
 
-  const programDay = await getProgramDay(dayNumber, program.id);
+  const programDay = await getProgramDay(dayRows[0].day_number, program.id);
   return {
     mode: 'workout',
     weekday,
-    dayNumber,
+    dayNumber: dayRows[0].day_number,
     date: dateIso,
     alreadyLogged,
     program: mapProgram(program),

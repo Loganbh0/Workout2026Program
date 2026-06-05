@@ -39,6 +39,7 @@ const run = async () => {
   const detail = await get(`/programs/${active.id}`);
   ok(detail.days?.length === 5, `Program detail has ${detail.days?.length} days`);
   ok(detail.days[0].title != null, `Day 1 title = ${detail.days[0].title}`);
+  ok(Array.isArray(detail.days[0].exercises), 'Program detail includes exercises per day');
 
   const renamed = await put(`/programs/${active.id}`, { displayName: active.displayName });
   ok(renamed.displayName === active.displayName, 'Program rename round-trip');
@@ -158,8 +159,56 @@ const run = async () => {
   ok(pullProgress.length >= 1, `Pull-ups progress has ${pullProgress.length} point(s)`);
   ok(pullProgress[0].reps != null, 'Pull-ups progress includes reps');
 
-  const activated = await post(`/programs/${active.id}/activate`, {});
+  const activated = await post(`/programs/${active.id}/activate`, { startDate: '2026-06-08' });
   ok(activated.isActive === true, 'Activate program returns active program');
+  ok(activated.startDate === '2026-06-08', 'Activate sets startDate');
+
+  const custom = await post('/programs', {
+    displayName: 'Smoke 3-Day Split',
+    durationWeeks: 4,
+    days: [
+      {
+        weekday: 'monday',
+        title: 'Upper',
+        exercises: [
+          { name: 'Bench', targetSets: '3', targetReps: '5', loggingMode: 'weighted_sets' },
+        ],
+      },
+      {
+        weekday: 'wednesday',
+        title: 'Lower',
+        exercises: [
+          { name: 'Squat Custom', targetSets: '3', targetReps: '5', loggingMode: 'weighted_sets' },
+        ],
+      },
+      {
+        weekday: 'friday',
+        title: 'Full',
+        exercises: [
+          { name: 'Pull Custom', targetSets: '3', targetReps: '8', loggingMode: 'bodyweight_sets' },
+        ],
+      },
+    ],
+  });
+  ok(custom.id != null, `Created custom program id=${custom.id}`);
+  ok(custom.days?.length === 3, `Custom program has ${custom.days?.length} days`);
+  ok(custom.days[0].exercises?.length === 1, 'Custom day includes exercises');
+
+  const customStart = nextWeekday(1);
+  const customActive = await post(`/programs/${custom.id}/activate`, { startDate: customStart });
+  ok(customActive.isActive === true, 'Custom program activated');
+
+  const monCustom = await get(`/today?date=${nextWeekday(1)}`);
+  ok(monCustom.mode === 'workout' && monCustom.dayNumber === 1, 'Mon on 3-day split -> day 1');
+
+  const tueCustom = await get(`/today?date=${nextWeekday(2)}`);
+  ok(tueCustom.mode === 'rest', 'Tue on 3-day split -> rest');
+
+  const wedCustom = await get(`/today?date=${nextWeekday(3)}`);
+  ok(wedCustom.mode === 'workout' && wedCustom.dayNumber === 2, 'Wed on 3-day split -> day 2');
+
+  await post(`/programs/${active.id}/activate`, { startDate: '2026-06-08' });
+  ok(true, 'Restored original active program');
 
   console.log(`\n${failures === 0 ? 'ALL SMOKE TESTS PASSED' : `${failures} FAILURE(S)`}`);
   process.exit(failures === 0 ? 0 : 1);

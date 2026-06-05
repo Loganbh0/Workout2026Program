@@ -1,9 +1,12 @@
 import { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
+import { PlusIcon } from '../components/Icons.jsx';
 import FolderCard from '../components/FolderCard.jsx';
 
 export default function HomePage() {
+  const navigate = useNavigate();
   const [programs, setPrograms] = useState(null);
   const [error, setError] = useState(null);
 
@@ -18,9 +21,20 @@ export default function HomePage() {
     };
   }, []);
 
+  const addButton = (
+    <button
+      type="button"
+      onClick={() => navigate('/programs/new')}
+      aria-label="Create program"
+      style={{ display: 'flex', color: 'var(--text-secondary)' }}
+    >
+      <PlusIcon width={22} height={22} />
+    </button>
+  );
+
   return (
     <>
-      <TopNav title="Home" />
+      <TopNav title="Home" right={addButton} />
       <div className="screen">
         <h1 className="heading" style={{ marginTop: 12 }}>Programs</h1>
         <p className="subtitle">Your workout plans and folders.</p>

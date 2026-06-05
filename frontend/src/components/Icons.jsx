@@ -48,6 +48,14 @@ export function PencilIcon(props) {
   );
 }
 
+export function PlusIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M12 5v14M5 12h14" />
+    </svg>
+  );
+}
+
 export function HistoryIcon(props) {
   return (
     <svg {...base} {...props}>

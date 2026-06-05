@@ -1,16 +1,16 @@
-# Deploying Home, Day-Complete, and Program Scoping
+# Deploying Program Builder and Flexible Splits
 
-This guide covers what to update in **Supabase**, **Render**, and **GitHub** after pulling the multi-program and UI changes.
+This guide covers what to update in **Supabase**, **Render**, and **GitHub** after pulling the program builder, default Today route, and activate start-date changes.
 
 ---
 
 ## Order of operations
 
 1. Push code to GitHub
-2. Run `0004_programs.sql` in Supabase
-3. Wait for Render to redeploy the backend (auto-deploy if enabled)
+2. Run migrations in Supabase (`0004` if needed, then `0005`)
+3. Wait for Render to redeploy the backend
 4. Deploy the frontend to GitHub Pages
-5. Hard-refresh the live site and verify
+5. Hard-refresh and verify
 
 ---
 
@@ -18,28 +18,22 @@ This guide covers what to update in **Supabase**, **Render**, and **GitHub** aft
 
 Open your project at [supabase.com](https://supabase.com) → **SQL Editor**.
 
-### Run migration
-
-Paste and run the full contents of:
+### Migration A — Multi-program (if not yet applied)
 
 `supabase/migrations/0004_programs.sql`
 
-This adds:
-- `programs` table with `display_name`, `slug`, `start_date`, `is_active`, etc.
-- `program_id` on `program_days` and `workout_sessions`
-- Seeds the existing 8-week program as the active program and links all existing data
+### Migration B — Flexible training days
 
-> Your logged workouts are **not** deleted. `app_settings` is kept for global prefs; `start_date` moves to the active program row.
+`supabase/migrations/0005_flexible_program_days.sql`
+
+This relaxes `day_number` limits and adds a unique `(program_id, weekday)` index so custom splits (e.g. Mon/Wed/Fri) work with the day trainer.
 
 ### Verify
 
 ```sql
-select id, display_name, is_active, start_date from programs;
-select count(*) from program_days where program_id is not null;
-select count(*) from workout_sessions where program_id is not null;
+select id, display_name, is_active, start_date, sessions_per_week from programs;
+select program_id, weekday, day_number, title from program_days order by program_id, day_number;
 ```
-
-You should see one active program (`pullups-2026` or similar) with `start_date = 2026-06-08`.
 
 ---
 
@@ -47,86 +41,58 @@ You should see one active program (`pullups-2026` or similar) with `start_date =
 
 ### What changes
 
-- New routes: `GET/PUT /programs`, `POST /programs/:id/activate`
-- `GET /today` includes `alreadyLogged`
-- `GET /stats`, `/sessions`, `/exercises`, `/progress/exercise/:name` accept `?scope=active|all`
-- Session create auto-attaches `program_id` from the active program
-
-### What you need to do
+- `POST /programs` — create custom program with days + exercises
+- `POST /programs/:id/activate` — requires `{ startDate: "YYYY-MM-DD" }`
+- `GET /today` — resolves workout by active program's weekday schedule (not fixed Mon=1)
+- `GET /programs/:id` — includes exercises per day
 
 | Action | Required? |
 |--------|-----------|
-| Push to GitHub (triggers auto-deploy) | Yes |
-| New env vars | **No** — keep existing `DATABASE_URL`, `API_KEY`, `CORS_ORIGIN` |
-| Manual redeploy | Only if auto-deploy is disabled |
+| Push to GitHub | Yes |
+| New env vars | **No** |
+| Manual redeploy | Only if auto-deploy is off |
 
-### Verify after deploy
+### Verify
 
-1. `GET https://workout2026-api.onrender.com/health` → `{"status":"ok"}`
-2. `GET /api/v1/programs` (with `x-api-key`) → returns at least one program with `isActive: true`
-3. Open the live app → Home tab shows program folder; Today shows day-complete after save
+1. `GET /health` → `{"status":"ok"}`
+2. `POST /programs` with a 3-day split → returns program with 3 days
+3. Activate with start date → Today shows rest on off-days
 
 ---
 
-## 3. GitHub / GitHub Pages (frontend)
+## 3. GitHub Pages (frontend)
 
 ### What changes
 
-- **Home** tab at `/` with folder grid
-- **Today** moved to `/today`
-- Program detail at `/programs/:id` (rename + ACTIVATE)
-- Day-complete view on weekends, after save, and when already logged
-- History/Progress scope toggle: **For active plan** | **All time**
+- App opens to **Today** (`/`)
+- **Home** at `/home` with **+** to create programs
+- Program detail: accordion days, activate → start-date scroll wheel
+- Create program wizard at `/programs/new`
 
-### Option A — GitHub Actions (recommended)
+Secrets unchanged: `VITE_API_BASE_URL`, `VITE_API_KEY`
 
-If **Settings → Pages → Source** is **GitHub Actions**:
-
-1. Push to `main` (changes under `frontend/` trigger the workflow)
-2. Confirm the **Actions** tab shows a successful deploy
-3. Secrets must still be set: `VITE_API_BASE_URL`, `VITE_API_KEY`
-
-### Option B — Manual deploy
-
-```bash
-cd frontend
-npm run deploy
-```
-
-### After deploy
-
-Hard-refresh: `Ctrl+Shift+R` on `https://loganbh0.github.io/Workout2026Program/`
-
----
-
-## Environment variables (unchanged)
-
-| Service | Variables |
-|---------|-----------|
-| **Render** | `DATABASE_URL`, `API_KEY`, `CORS_ORIGIN` |
-| **GitHub Actions secrets** | `VITE_API_BASE_URL`, `VITE_API_KEY` |
-| **Supabase** | No new keys — same Postgres connection |
+Hard-refresh after deploy: `Ctrl+Shift+R`
 
 ---
 
 ## Quick smoke checklist
 
-- [ ] Home tab shows program folder(s); tap opens program detail
-- [ ] Program detail lists 5 days; pencil renames; ACTIVE/ACTIVATE button works
-- [ ] Today tab at `/today` shows workout form on unlogged weekdays
-- [ ] After saving (or reload when already logged), Today shows breathing + stats (no form)
-- [ ] Saturday/Sunday show rest day-complete view
-- [ ] History and Progress have **For active plan** / **All time** toggle
-- [ ] Scope toggle refetches data; active plan filters to current program
-- [ ] Bottom nav: Home | Today | History | Progress (4 tabs)
+- [ ] App opens to Today tab by default
+- [ ] Home **+** opens create program wizard
+- [ ] Create Mon/Wed/Fri program with exercises → saves and opens detail
+- [ ] Program detail day rows expand to show exercise table
+- [ ] ACTIVATE opens date wheel; confirm sets start date
+- [ ] On 3-day split, Tuesday shows rest/day-complete; Mon/Wed show workout
+- [ ] History/Progress scope toggle still works
 
 ---
 
-## Prior migrations (if not yet applied)
+## Prior migrations
 
 | File | Purpose |
 |------|---------|
 | `0001_init.sql` | Base schema |
 | `0002_seed_program.sql` | Program exercises |
 | `0003_per_set_logging.sql` | Per-set logging |
-| `0004_programs.sql` | Multi-program layer (**this release**) |
+| `0004_programs.sql` | Multi-program layer |
+| `0005_flexible_program_days.sql` | Custom splits (**this release**) |
