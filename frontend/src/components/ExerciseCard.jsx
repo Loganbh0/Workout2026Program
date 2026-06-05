@@ -1,5 +1,5 @@
-import { useMemo } from 'react';
-import { CheckIcon } from './Icons.jsx';
+import { useMemo, useState } from 'react';
+import { CheckIcon, ChevronDownIcon } from './Icons.jsx';
 import SetRow from './SetRow.jsx';
 import VariantPicker from './VariantPicker.jsx';
 import { parseSetCount, emptySets, resolveLoggingMode } from '../setCount.js';
@@ -26,11 +26,13 @@ function normalizeVariantOptions(exercise) {
 }
 
 export default function ExerciseCard({ exercise, value, onChange }) {
+  const [expanded, setExpanded] = useState(false);
   const target = targetText(exercise);
   const variantOptions = normalizeVariantOptions(exercise);
   const setCount = parseSetCount(exercise.target_sets);
   const mode = resolveLoggingMode(exercise, value.variantKey);
   const showSets = mode !== 'completion_only';
+  const canExpand = showSets || exercise.logging_mode === 'variant';
 
   const sets = useMemo(() => {
     if (!showSets) return [];
@@ -59,13 +61,49 @@ export default function ExerciseCard({ exercise, value, onChange }) {
     update({ sets: next });
   };
 
+  const panelId = `exercise-panel-${exercise.id}`;
+
   return (
-    <div className={`exercise${value.completed ? ' exercise--done' : ''}`}>
+    <div className={`exercise${value.completed ? ' exercise--done' : ''}${expanded ? ' exercise--open' : ''}`}>
       <div className="exercise__head">
-        <div className="exercise__title">
-          <span className="exercise__name">{exercise.name}</span>
-          {exercise.is_priority && <span className="exercise__badge">Priority</span>}
-        </div>
+        {canExpand ? (
+          <button
+            type="button"
+            className="exercise__toggle"
+            onClick={() => setExpanded((o) => !o)}
+            aria-expanded={expanded}
+            aria-controls={panelId}
+          >
+            <div className="exercise__title">
+              <span className="exercise__name">{exercise.name}</span>
+              {exercise.is_priority && <span className="exercise__badge">Priority</span>}
+            </div>
+            {(target || exercise.notes_hint) && (
+              <div className="exercise__meta">
+                {target && <span className="exercise__target">{target}</span>}
+                {exercise.notes_hint && <span className="exercise__hint">{exercise.notes_hint}</span>}
+              </div>
+            )}
+            <ChevronDownIcon
+              className={`exercise__chevron${expanded ? ' exercise__chevron--open' : ''}`}
+              width={18}
+              height={18}
+            />
+          </button>
+        ) : (
+          <div className="exercise__toggle exercise__toggle--static">
+            <div className="exercise__title">
+              <span className="exercise__name">{exercise.name}</span>
+              {exercise.is_priority && <span className="exercise__badge">Priority</span>}
+            </div>
+            {(target || exercise.notes_hint) && (
+              <div className="exercise__meta">
+                {target && <span className="exercise__target">{target}</span>}
+                {exercise.notes_hint && <span className="exercise__hint">{exercise.notes_hint}</span>}
+              </div>
+            )}
+          </div>
+        )}
         <button
           type="button"
           className={`exercise__check${value.completed ? ' exercise__check--on' : ''}`}
@@ -76,32 +114,29 @@ export default function ExerciseCard({ exercise, value, onChange }) {
         </button>
       </div>
 
-      {(target || exercise.notes_hint) && (
-        <div className="exercise__meta">
-          {target && <span className="exercise__target">{target}</span>}
-          {exercise.notes_hint && <span className="exercise__hint">{exercise.notes_hint}</span>}
-        </div>
-      )}
-
-      {exercise.logging_mode === 'variant' && (
-        <VariantPicker
-          options={variantOptions}
-          value={value.variantKey || variantOptions[0]?.key}
-          onChange={handleVariantChange}
-        />
-      )}
-
-      {showSets && (
-        <div className="exercise__sets">
-          {sets.map((set, i) => (
-            <SetRow
-              key={set.setNumber}
-              setNumber={set.setNumber}
-              mode={mode}
-              value={set}
-              onChange={(v) => handleSetChange(i, v)}
+      {canExpand && expanded && (
+        <div className="exercise__body" id={panelId}>
+          {exercise.logging_mode === 'variant' && (
+            <VariantPicker
+              options={variantOptions}
+              value={value.variantKey || variantOptions[0]?.key}
+              onChange={handleVariantChange}
             />
-          ))}
+          )}
+
+          {showSets && (
+            <div className="exercise__sets">
+              {sets.map((set, i) => (
+                <SetRow
+                  key={set.setNumber}
+                  setNumber={set.setNumber}
+                  mode={mode}
+                  value={set}
+                  onChange={(v) => handleSetChange(i, v)}
+                />
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>

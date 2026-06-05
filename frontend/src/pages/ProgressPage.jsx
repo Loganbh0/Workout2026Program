@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import {
   LineChart,
   Line,
@@ -47,6 +47,19 @@ export default function ProgressPage() {
   const [series, setSeries] = useState(null);
   const [error, setError] = useState(null);
 
+  const selectedMeta = useMemo(
+    () => exercises?.find((e) => e.name === selected),
+    [exercises, selected]
+  );
+
+  const showWeightChart = useMemo(() => {
+    if (!selectedMeta || !series?.length) return false;
+    if (selectedMeta.loggingMode === 'bodyweight_sets') return false;
+    if (selectedMeta.loggingMode === 'weighted_sets') return true;
+    // variant: show weight only when logged sessions include weight data
+    return series.some((r) => r.weight != null);
+  }, [selectedMeta, series]);
+
   useEffect(() => {
     let active = true;
     api
@@ -54,7 +67,7 @@ export default function ProgressPage() {
       .then((list) => {
         if (!active) return;
         setExercises(list);
-        if (list.length) setSelected(list[0]);
+        if (list.length) setSelected(list[0].name);
       })
       .catch((e) => active && setError(e.message));
     return () => {
@@ -106,9 +119,9 @@ export default function ProgressPage() {
                 value={selected}
                 onChange={(e) => setSelected(e.target.value)}
               >
-                {exercises.map((name) => (
-                  <option key={name} value={name}>
-                    {name}
+                {exercises.map((ex) => (
+                  <option key={ex.name} value={ex.name}>
+                    {ex.name}
                   </option>
                 ))}
               </select>
@@ -122,7 +135,9 @@ export default function ProgressPage() {
 
             {series && series.length > 0 && (
               <>
-                <Chart title="Weight (lbs)" data={series} dataKey="weight" name="Weight" />
+                {showWeightChart && (
+                  <Chart title="Weight (lbs)" data={series} dataKey="weight" name="Weight" />
+                )}
                 <Chart title="Reps" data={series} dataKey="reps" name="Reps" />
                 <Chart title="Effort (1–5)" data={series} dataKey="exertion" name="Effort" domain={[0, 5]} />
               </>

@@ -76,6 +76,14 @@ export function ChevronLeftIcon(props) {
   );
 }
 
+export function ChevronDownIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M6 9l6 6 6-6" />
+    </svg>
+  );
+}
+
 export function FlameIcon(props) {
   return (
     <svg {...base} fill="currentColor" stroke="none" {...props}>

@@ -110,9 +110,24 @@ Hard-refresh: `Ctrl+Shift+R` on `https://loganbh0.github.io/Workout2026Program/`
 
 ## Quick smoke checklist
 
-- [ ] Squat shows 3 set rows (weight + reps each)
+- [ ] Squat shows 3 set rows (weight + reps each) when exercise card is expanded
+- [ ] Exercise cards are collapsed by default; tap header to expand sets
 - [ ] Pull-ups show reps per set + Band checkbox (no weight)
 - [ ] Lat Pulldown exercise has variant toggle (Lat Pulldown vs Assisted Pull-ups)
 - [ ] Session detail shows per-set breakdown
 - [ ] Progress bar shows 0/40 before June 8; streak still updates
 - [ ] After June 8, logged workouts count toward 1/40, 2/40, etc.
+- [ ] Progress tab excludes movement exercises (A-skips, Box jumps, etc.)
+- [ ] Pull-ups appear in Progress with Reps + Effort charts only (no Weight chart)
+
+---
+
+## Latest update: Progress filter + collapsible cards
+
+| Service | Required? | What to do |
+|---------|-----------|------------|
+| **Supabase** | No | No new SQL |
+| **Render** | Yes | Push backend — redeploys `/exercises` filter + progress guard |
+| **GitHub Pages** | Yes | Push frontend or `npm run deploy` — accordion cards + Progress chart logic |
+
+No new environment variables.

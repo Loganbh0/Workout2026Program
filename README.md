@@ -156,5 +156,5 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | GET | `/sessions` | History list (`?from=&to=&dayNumber=`) |
 | GET | `/sessions/:id` | One session with exercise logs |
 | POST | `/sessions` | Create a session + logs |
-| GET | `/exercises` | Distinct logged exercise names |
+| GET | `/exercises` | Logged exercises with set data (`{ name, loggingMode }[]`; excludes completion-only) |
 | GET | `/progress/exercise/:name` | Time series for charts |

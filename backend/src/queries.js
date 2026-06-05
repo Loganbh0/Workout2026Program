@@ -212,8 +212,21 @@ export async function createSession({ workoutDate, dayNumber, exertion, sessionN
   return getSession(sessionId);
 }
 
+const TRACKABLE_MODES = ['weighted_sets', 'bodyweight_sets', 'variant'];
+
+async function getExerciseLoggingMode(name) {
+  const { rows } = await query(
+    `select logging_mode from program_exercises where name = $1 limit 1`,
+    [name]
+  );
+  return rows[0]?.logging_mode ?? null;
+}
+
 // Time series for one exercise (for progress charts) — best set per session date.
 export async function getExerciseProgress(name) {
+  const loggingMode = await getExerciseLoggingMode(name);
+  if (!loggingMode || !TRACKABLE_MODES.includes(loggingMode)) return [];
+
   const { rows } = await query(
     `select ws.workout_date,
             max(esl.weight_lbs) as weight_lbs,
@@ -231,12 +244,20 @@ export async function getExerciseProgress(name) {
   return rows;
 }
 
-// Distinct exercise names that have been logged (for the progress picker).
+// Logged exercises with set-level data (excludes completion-only movement items).
 export async function listLoggedExercises() {
   const { rows } = await query(
-    `select distinct exercise_name from exercise_logs order by exercise_name`
+    `select distinct el.exercise_name, pe.logging_mode
+       from exercise_logs el
+       join program_exercises pe on pe.name = el.exercise_name
+      where pe.logging_mode = any($1::text[])
+      order by el.exercise_name`,
+    [TRACKABLE_MODES]
   );
-  return rows.map((r) => r.exercise_name);
+  return rows.map((r) => ({
+    name: r.exercise_name,
+    loggingMode: r.logging_mode,
+  }));
 }
 
 export async function getStats() {

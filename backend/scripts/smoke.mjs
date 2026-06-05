@@ -123,7 +123,15 @@ const run = async () => {
   ok(typeof stats.programStatus === 'string', `Program status = ${stats.programStatus}`);
 
   const exercises = await get('/exercises');
-  ok(exercises.includes('Squat'), `Exercises list includes Squat (${exercises.length} total)`);
+  const names = exercises.map((e) => e.name ?? e);
+  ok(names.includes('Squat'), `Exercises list includes Squat (${names.length} total)`);
+  ok(names.includes('Pull-ups'), 'Exercises list includes Pull-ups (bodyweight_sets)');
+  const pullMeta = exercises.find((e) => e.name === 'Pull-ups');
+  ok(pullMeta?.loggingMode === 'bodyweight_sets', 'Pull-ups loggingMode is bodyweight_sets');
+
+  const pullProgress = await get('/progress/exercise/Pull-ups');
+  ok(pullProgress.length >= 1, `Pull-ups progress has ${pullProgress.length} point(s)`);
+  ok(pullProgress[0].reps != null, 'Pull-ups progress includes reps');
 
   console.log(`\n${failures === 0 ? 'ALL SMOKE TESTS PASSED' : `${failures} FAILURE(S)`}`);
   process.exit(failures === 0 ? 0 : 1);
