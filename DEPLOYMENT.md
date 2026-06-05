@@ -1,13 +1,13 @@
-# Deploying Per-Set Logging Updates
+# Deploying Home, Day-Complete, and Program Scoping
 
-This guide covers what to update in **Supabase**, **Render**, and **GitHub** after pulling the per-set logging changes.
+This guide covers what to update in **Supabase**, **Render**, and **GitHub** after pulling the multi-program and UI changes.
 
 ---
 
 ## Order of operations
 
 1. Push code to GitHub
-2. Run SQL migrations in Supabase (schema first, then program seed)
+2. Run `0004_programs.sql` in Supabase
 3. Wait for Render to redeploy the backend (auto-deploy if enabled)
 4. Deploy the frontend to GitHub Pages
 5. Hard-refresh the live site and verify
@@ -18,36 +18,28 @@ This guide covers what to update in **Supabase**, **Render**, and **GitHub** aft
 
 Open your project at [supabase.com](https://supabase.com) → **SQL Editor**.
 
-### Step A — Schema migration
+### Run migration
 
 Paste and run the full contents of:
 
-`supabase/migrations/0003_per_set_logging.sql`
+`supabase/migrations/0004_programs.sql`
 
 This adds:
-- `logging_mode` and `variant_options` columns on `program_exercises`
-- `variant_key` on `exercise_logs`
-- `exercise_set_logs` table for per-set weight/reps/assisted-band data
-- Migrates any existing flat logs into single set rows
+- `programs` table with `display_name`, `slug`, `start_date`, `is_active`, etc.
+- `program_id` on `program_days` and `workout_sessions`
+- Seeds the existing 8-week program as the active program and links all existing data
 
-### Step B — Program seed (updated exercises)
+> Your logged workouts are **not** deleted. `app_settings` is kept for global prefs; `start_date` moves to the active program row.
 
-Paste and run the full contents of:
-
-`supabase/migrations/0002_seed_program.sql`
-
-This refreshes program exercises with the new logging modes (bodyweight pull-ups, variant lat pulldown exercise, etc.).
-
-> Your logged workouts and `app_settings` (including `start_date = 2026-06-08`) are **not** deleted by the seed.
-
-### Step C — Verify
+### Verify
 
 ```sql
-select name, logging_mode from program_exercises where logging_mode != 'weighted_sets';
-select count(*) from exercise_set_logs;
+select id, display_name, is_active, start_date from programs;
+select count(*) from program_days where program_id is not null;
+select count(*) from workout_sessions where program_id is not null;
 ```
 
-You should see Pull-ups as `bodyweight_sets`, Lat Pulldown as `variant`, and set rows for any previously logged exercises.
+You should see one active program (`pullups-2026` or similar) with `start_date = 2026-06-08`.
 
 ---
 
@@ -55,9 +47,10 @@ You should see Pull-ups as `bodyweight_sets`, Lat Pulldown as `variant`, and set
 
 ### What changes
 
-- Backend code in `backend/` handles nested `sets[]` on session create/read
-- `getStats()` filters progress to sessions on/after `start_date`
-- Streak still counts all sessions
+- New routes: `GET/PUT /programs`, `POST /programs/:id/activate`
+- `GET /today` includes `alreadyLogged`
+- `GET /stats`, `/sessions`, `/exercises`, `/progress/exercise/:name` accept `?scope=active|all`
+- Session create auto-attaches `program_id` from the active program
 
 ### What you need to do
 
@@ -70,12 +63,20 @@ You should see Pull-ups as `bodyweight_sets`, Lat Pulldown as `variant`, and set
 ### Verify after deploy
 
 1. `GET https://workout2026-api.onrender.com/health` → `{"status":"ok"}`
-2. Open the live app → log a workout with multiple sets → confirm it saves
-3. Before June 8: progress should show **0/40** and label **"Starts June 8"**
+2. `GET /api/v1/programs` (with `x-api-key`) → returns at least one program with `isActive: true`
+3. Open the live app → Home tab shows program folder; Today shows day-complete after save
 
 ---
 
 ## 3. GitHub / GitHub Pages (frontend)
+
+### What changes
+
+- **Home** tab at `/` with folder grid
+- **Today** moved to `/today`
+- Program detail at `/programs/:id` (rename + ACTIVATE)
+- Day-complete view on weekends, after save, and when already logged
+- History/Progress scope toggle: **For active plan** | **All time**
 
 ### Option A — GitHub Actions (recommended)
 
@@ -110,24 +111,22 @@ Hard-refresh: `Ctrl+Shift+R` on `https://loganbh0.github.io/Workout2026Program/`
 
 ## Quick smoke checklist
 
-- [ ] Squat shows 3 set rows (weight + reps each) when exercise card is expanded
-- [ ] Exercise cards are collapsed by default; tap header to expand sets
-- [ ] Pull-ups show reps per set + Band checkbox (no weight)
-- [ ] Lat Pulldown exercise has variant toggle (Lat Pulldown vs Assisted Pull-ups)
-- [ ] Session detail shows per-set breakdown
-- [ ] Progress bar shows 0/40 before June 8; streak still updates
-- [ ] After June 8, logged workouts count toward 1/40, 2/40, etc.
-- [ ] Progress tab excludes movement exercises (A-skips, Box jumps, etc.)
-- [ ] Pull-ups appear in Progress with Reps + Effort charts only (no Weight chart)
+- [ ] Home tab shows program folder(s); tap opens program detail
+- [ ] Program detail lists 5 days; pencil renames; ACTIVE/ACTIVATE button works
+- [ ] Today tab at `/today` shows workout form on unlogged weekdays
+- [ ] After saving (or reload when already logged), Today shows breathing + stats (no form)
+- [ ] Saturday/Sunday show rest day-complete view
+- [ ] History and Progress have **For active plan** / **All time** toggle
+- [ ] Scope toggle refetches data; active plan filters to current program
+- [ ] Bottom nav: Home | Today | History | Progress (4 tabs)
 
 ---
 
-## Latest update: Progress filter + collapsible cards
+## Prior migrations (if not yet applied)
 
-| Service | Required? | What to do |
-|---------|-----------|------------|
-| **Supabase** | No | No new SQL |
-| **Render** | Yes | Push backend — redeploys `/exercises` filter + progress guard |
-| **GitHub Pages** | Yes | Push frontend or `npm run deploy` — accordion cards + Progress chart logic |
-
-No new environment variables.
+| File | Purpose |
+|------|---------|
+| `0001_init.sql` | Base schema |
+| `0002_seed_program.sql` | Program exercises |
+| `0003_per_set_logging.sql` | Per-set logging |
+| `0004_programs.sql` | Multi-program layer (**this release**) |

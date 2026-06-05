@@ -15,12 +15,16 @@ import {
   getExerciseProgress,
   listLoggedExercises,
   getStats,
+  listPrograms,
+  getProgram,
+  updateProgram,
+  activateProgram,
+  getActiveProgram,
 } from './queries.js';
 
 const app = express();
 app.use(express.json());
 
-// CORS: allow the GitHub Pages origin (comma-separated list supported).
 const allowedOrigins = (process.env.CORS_ORIGIN || '*')
   .split(',')
   .map((s) => s.trim())
@@ -34,7 +38,6 @@ app.use(
   })
 );
 
-// Health check (no auth) for Render.
 app.get('/health', (_req, res) => res.json({ status: 'ok' }));
 
 const api = express.Router();
@@ -49,16 +52,40 @@ api.put('/settings', asyncHandler(async (req, res) => {
   res.json(await updateSettings({ startDate, weightUnit }));
 }));
 
+api.get('/programs', asyncHandler(async (_req, res) => {
+  res.json(await listPrograms());
+}));
+
+api.get('/programs/:id', asyncHandler(async (req, res) => {
+  const program = await getProgram(Number(req.params.id));
+  if (!program) return res.status(404).json({ error: 'Program not found' });
+  res.json(program);
+}));
+
+api.put('/programs/:id', asyncHandler(async (req, res) => {
+  const { displayName } = req.body || {};
+  const program = await updateProgram(Number(req.params.id), { displayName });
+  if (!program) return res.status(404).json({ error: 'Program not found' });
+  res.json(program);
+}));
+
+api.post('/programs/:id/activate', asyncHandler(async (req, res) => {
+  const program = await activateProgram(Number(req.params.id));
+  res.json(program);
+}));
+
 api.get('/today', asyncHandler(async (req, res) => {
   res.json(await resolveToday(req.query.date));
 }));
 
-api.get('/stats', asyncHandler(async (_req, res) => {
-  res.json(await getStats());
+api.get('/stats', asyncHandler(async (req, res) => {
+  res.json(await getStats(req.query.scope));
 }));
 
 api.get('/program/day/:dayNumber', asyncHandler(async (req, res) => {
-  const day = await getProgramDay(Number(req.params.dayNumber));
+  const program = await getActiveProgram();
+  if (!program) return res.status(404).json({ error: 'No active program' });
+  const day = await getProgramDay(Number(req.params.dayNumber), program.id);
   if (!day) return res.status(404).json({ error: 'Day not found' });
   res.json(day);
 }));
@@ -70,11 +97,12 @@ api.get('/prefill/day/:dayNumber', asyncHandler(async (req, res) => {
 }));
 
 api.get('/sessions', asyncHandler(async (req, res) => {
-  const { from, to, dayNumber } = req.query;
+  const { from, to, dayNumber, scope } = req.query;
   res.json(await listSessions({
     from,
     to,
     dayNumber: dayNumber ? Number(dayNumber) : undefined,
+    scope,
   }));
 }));
 
@@ -93,12 +121,12 @@ api.post('/sessions', asyncHandler(async (req, res) => {
   res.status(201).json(session);
 }));
 
-api.get('/exercises', asyncHandler(async (_req, res) => {
-  res.json(await listLoggedExercises());
+api.get('/exercises', asyncHandler(async (req, res) => {
+  res.json(await listLoggedExercises(req.query.scope));
 }));
 
 api.get('/progress/exercise/:name', asyncHandler(async (req, res) => {
-  res.json(await getExerciseProgress(req.params.name));
+  res.json(await getExerciseProgress(req.params.name, req.query.scope));
 }));
 
 app.use('/api/v1', api);

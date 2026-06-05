@@ -232,6 +232,37 @@ a {
 .btn--done {
   background: var(--card-elevated);
 }
+.btn--secondary {
+  background: var(--card);
+  border: 1px solid var(--card-border);
+}
+.btn--muted {
+  background: var(--card);
+  color: var(--text-tertiary);
+}
+
+/* ----- Day complete ----- */
+.day-complete {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 8px 0 4px;
+}
+.day-complete__title {
+  margin-top: 8px;
+}
+.day-complete__subtitle {
+  max-width: 300px;
+}
+
+/* ----- Folder grid ----- */
+.folder-grid {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 20px 14px;
+  padding-top: 8px;
+}
 
 .btn-fixed {
   position: fixed;

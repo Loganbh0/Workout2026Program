@@ -19,11 +19,31 @@ export function DumbbellIcon(props) {
   );
 }
 
+export function HomeIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <rect x="3.5" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13" y="3.5" width="7.5" height="7.5" rx="1.5" />
+      <rect x="3.5" y="13" width="7.5" height="7.5" rx="1.5" />
+      <rect x="13" y="13" width="7.5" height="7.5" rx="1.5" />
+    </svg>
+  );
+}
+
 export function TodayIcon(props) {
   return (
     <svg {...base} {...props}>
       <rect x="3.5" y="4.5" width="17" height="16" rx="3" />
       <path d="M3.5 9h17M8 3v3M16 3v3" />
+    </svg>
+  );
+}
+
+export function PencilIcon(props) {
+  return (
+    <svg {...base} {...props}>
+      <path d="M4 20h4l10.5-10.5a2.1 2.1 0 00-3-3L5 17v3z" />
+      <path d="M13.5 6.5l3 3" />
     </svg>
   );
 }

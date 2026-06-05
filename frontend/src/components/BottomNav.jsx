@@ -1,8 +1,9 @@
 import { NavLink } from 'react-router-dom';
-import { TodayIcon, HistoryIcon, ChartIcon } from './Icons.jsx';
+import { HomeIcon, TodayIcon, HistoryIcon, ChartIcon } from './Icons.jsx';
 
 const items = [
-  { to: '/', label: 'Today', Icon: TodayIcon, end: true },
+  { to: '/', label: 'Home', Icon: HomeIcon, end: true },
+  { to: '/today', label: 'Today', Icon: TodayIcon },
   { to: '/history', label: 'History', Icon: HistoryIcon },
   { to: '/progress', label: 'Progress', Icon: ChartIcon },
 ];

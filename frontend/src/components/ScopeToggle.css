@@ -1,0 +1,25 @@
+.scope-toggle {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+  margin-bottom: 4px;
+}
+
+.scope-toggle__btn {
+  flex: 1;
+  min-height: 36px;
+  border-radius: 10px;
+  border: 1px solid var(--card-border);
+  background: var(--card);
+  color: var(--text-secondary);
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 10px;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
+}
+
+.scope-toggle__btn--on {
+  background: var(--text-primary);
+  border-color: var(--text-primary);
+  color: #000;
+}

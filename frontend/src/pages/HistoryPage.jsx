@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
+import ScopeToggle from '../components/ScopeToggle.jsx';
 import { ChevronRightIcon } from '../components/Icons.jsx';
 
 function formatDate(iso) {
@@ -10,26 +11,29 @@ function formatDate(iso) {
 }
 
 export default function HistoryPage() {
+  const [scope, setScope] = useState('active');
   const [sessions, setSessions] = useState(null);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let active = true;
+    setSessions(null);
     api
-      .sessions()
+      .sessions({ scope })
       .then((s) => active && setSessions(s))
       .catch((e) => active && setError(e.message));
     return () => {
       active = false;
     };
-  }, []);
+  }, [scope]);
 
   return (
     <>
       <TopNav title="History" />
       <div className="screen">
         <h1 className="heading" style={{ marginTop: 12 }}>History</h1>
-        <p className="subtitle">Every session you’ve logged.</p>
+        <p className="subtitle">Every session you've logged.</p>
+        <ScopeToggle value={scope} onChange={setScope} />
 
         <div className="section">
           {error && <div className="empty">{error}</div>}

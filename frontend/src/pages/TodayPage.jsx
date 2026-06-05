@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { api, localIsoDate } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
-import RestDay from './RestDay.jsx';
+import DayCompleteView from '../components/DayCompleteView.jsx';
 import { ProgressCard, StatsCard } from '../components/Cards.jsx';
 import ExerciseCard from '../components/ExerciseCard.jsx';
 import ExertionPicker from '../components/ExertionPicker.jsx';
@@ -77,7 +77,11 @@ export default function TodayPage() {
         if (!active) return;
         setToday(t);
         setStats(s);
-        if (t.mode === 'workout') {
+
+        const showWorkoutForm =
+          t.mode === 'workout' && !t.alreadyLogged;
+
+        if (showWorkoutForm) {
           const d = await api.prefillDay(t.dayNumber);
           if (!active) return;
           setDay(d);
@@ -145,6 +149,7 @@ export default function TodayPage() {
         logs,
       });
       setSaved(true);
+      setToday((prev) => (prev ? { ...prev, alreadyLogged: true } : prev));
       const s = await api.stats();
       setStats(s);
     } catch (e) {
@@ -176,8 +181,19 @@ export default function TodayPage() {
     );
   }
 
-  if (today?.mode === 'rest') {
-    return <RestDay weekday={today.weekday} />;
+  const showDayComplete =
+    today?.mode === 'rest' ||
+    today?.alreadyLogged ||
+    saved;
+
+  if (showDayComplete) {
+    return (
+      <DayCompleteView
+        mode={today?.mode === 'rest' ? 'rest' : 'complete'}
+        weekday={today?.weekday}
+        stats={stats}
+      />
+    );
   }
 
   const pd = today.programDay || day;

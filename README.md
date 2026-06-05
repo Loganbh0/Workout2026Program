@@ -1,6 +1,6 @@
 # Workout 2026 Tracker
 
-A minimal, iOS-style dark mobile web app for tracking the **8 Week Athletic Strength Program**. It shows the correct workout for the day (Mon = Day 1 … Fri = Day 5, weekends = Rest Day), lets you log weights/reps per exercise with smart pre-fill, rate effort on a 1–5 scale, add notes, and review history and progress charts.
+A minimal, iOS-style dark mobile web app for tracking the **8 Week Athletic Strength Program**. A **Home** tab lists your programs; **Today** shows the correct workout (Mon = Day 1 … Fri = Day 5) or a unified day-complete view on weekends and after logging. Log weights/reps per exercise with smart pre-fill, rate effort on a 1–5 scale, add notes, and review history and progress charts scoped to the active plan or all time.
 
 - **Frontend:** React + Vite (static, deployed to GitHub Pages)
 - **Backend:** Node + Express (deployed to Render)
@@ -34,7 +34,7 @@ The program is **data-driven**. Exercises live in [`backend/data/program.json`](
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the migrations (in order) against your project. Either:
-   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` then `supabase/migrations/0002_seed_program.sql`, or
+   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0004_programs.sql`, or
    - **Supabase CLI:**
      ```bash
      supabase link --project-ref <your-ref>
@@ -46,10 +46,10 @@ The program is **data-driven**. Exercises live in [`backend/data/program.json`](
 
 ### Set your program start date
 
-So the app can show "Week X of 8", set a start date once (replace the value):
+So the app can show "Week X of 8", set a start date on the active program (replace the value):
 
 ```sql
-update app_settings set start_date = '2026-01-05' where id = 1;
+update programs set start_date = '2026-01-05' where is_active = true;
 ```
 
 ---
@@ -148,13 +148,17 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 
 | Method | Route | Purpose |
 |--------|-------|---------|
-| GET | `/today?date=YYYY-MM-DD` | Resolve day → workout (1–5) or rest |
-| GET | `/stats` | Streak, check-ins, completion %, current week |
-| GET | `/settings` / PUT `/settings` | Program metadata + start date |
-| GET | `/program/day/:n` | Exercises + targets for a day |
+| GET | `/programs` | List programs for Home (`id`, `displayName`, `dayCount`, `isActive`) |
+| GET | `/programs/:id` | Program detail + weekly day list |
+| PUT | `/programs/:id` | Rename program (`displayName`) |
+| POST | `/programs/:id/activate` | Set active program (deactivates others) |
+| GET | `/today?date=YYYY-MM-DD` | Resolve day → workout (1–5) or rest; includes `alreadyLogged` |
+| GET | `/stats?scope=active\|all` | Streak, check-ins, completion %, current week |
+| GET | `/settings` / PUT `/settings` | Global app settings |
+| GET | `/program/day/:n` | Exercises + targets for a day (active program) |
 | GET | `/prefill/day/:n` | Day exercises with last-logged weight/reps |
-| GET | `/sessions` | History list (`?from=&to=&dayNumber=`) |
+| GET | `/sessions?scope=active\|all` | History list (`?from=&to=&dayNumber=`) |
 | GET | `/sessions/:id` | One session with exercise logs |
-| POST | `/sessions` | Create a session + logs |
-| GET | `/exercises` | Logged exercises with set data (`{ name, loggingMode }[]`; excludes completion-only) |
-| GET | `/progress/exercise/:name` | Time series for charts |
+| POST | `/sessions` | Create a session + logs (auto-attaches active `program_id`) |
+| GET | `/exercises?scope=active\|all` | Logged exercises (`{ name, loggingMode }[]`; excludes completion-only) |
+| GET | `/progress/exercise/:name?scope=active\|all` | Time series for charts |

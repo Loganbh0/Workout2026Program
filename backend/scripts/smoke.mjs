@@ -13,6 +13,12 @@ const post = (p, body) =>
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
   }).then((r) => r.json());
+const put = (p, body) =>
+  fetch(`${BASE}${p}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  }).then((r) => r.json());
 
 function nextWeekday(target) {
   const d = new Date();
@@ -24,8 +30,22 @@ function nextWeekday(target) {
 }
 
 const run = async () => {
+  const programs = await get('/programs');
+  ok(Array.isArray(programs) && programs.length >= 1, `Programs list has ${programs?.length ?? 0} item(s)`);
+  const active = programs.find((p) => p.isActive);
+  ok(active != null, `Active program: ${active?.displayName}`);
+  ok(active?.dayCount === 5, `Active program has ${active?.dayCount} days`);
+
+  const detail = await get(`/programs/${active.id}`);
+  ok(detail.days?.length === 5, `Program detail has ${detail.days?.length} days`);
+  ok(detail.days[0].title != null, `Day 1 title = ${detail.days[0].title}`);
+
+  const renamed = await put(`/programs/${active.id}`, { displayName: active.displayName });
+  ok(renamed.displayName === active.displayName, 'Program rename round-trip');
+
   const monday = await get(`/today?date=${nextWeekday(1)}`);
   ok(monday.mode === 'workout' && monday.dayNumber === 1, `Monday -> Day 1 (${monday.programDay?.title})`);
+  ok(typeof monday.alreadyLogged === 'boolean', `alreadyLogged = ${monday.alreadyLogged}`);
 
   const saturday = await get(`/today?date=${nextWeekday(6)}`);
   ok(saturday.mode === 'rest', 'Saturday -> rest day');
@@ -79,6 +99,9 @@ const run = async () => {
   const squatLog = created.logs.find((l) => l.exercise_name === 'Squat');
   ok(squatLog?.sets?.length === 3, `Squat saved ${squatLog?.sets?.length} sets`);
 
+  const mondayLogged = await get(`/today?date=${nextWeekday(1)}`);
+  ok(mondayLogged.alreadyLogged === true, 'Monday alreadyLogged after save');
+
   const monday2 = (() => {
     const d = new Date(`${nextWeekday(1)}T12:00:00`);
     d.setDate(d.getDate() + 7);
@@ -104,8 +127,10 @@ const run = async () => {
     ],
   });
 
-  const history = await get('/sessions');
-  ok(history.length >= 2, `History has ${history.length} sessions`);
+  const historyActive = await get('/sessions?scope=active');
+  ok(historyActive.length >= 2, `Active history has ${historyActive.length} sessions`);
+  const historyAll = await get('/sessions?scope=all');
+  ok(historyAll.length >= historyActive.length, `All-time history has ${historyAll.length} sessions`);
 
   const prefill2 = await get('/prefill/day/1');
   const squat = prefill2.exercises.find((e) => e.name === 'Squat');
@@ -113,25 +138,28 @@ const run = async () => {
   ok(squat.prefill.sets?.length === 3, `Squat prefill has ${squat.prefill.sets?.length} sets`);
   ok(Number(squat.prefill.sets[0].weightLbs) === 195, `Squat set 1 prefill = ${squat.prefill.sets[0].weightLbs}`);
 
-  const progress = await get('/progress/exercise/Squat');
-  ok(progress.length === 2, `Squat progress has ${progress.length} points`);
+  const progress = await get('/progress/exercise/Squat?scope=active');
+  ok(progress.length === 2, `Squat progress (active) has ${progress.length} points`);
   ok(Number(progress[0].weight_lbs) === 185 && Number(progress[1].weight_lbs) === 195, 'Squat weight trend 185 -> 195');
 
-  const stats = await get('/stats');
+  const stats = await get('/stats?scope=active');
   ok(typeof stats.checkIns === 'number', `Check-ins = ${stats.checkIns}`);
   ok(typeof stats.completion === 'number', `Completion = ${stats.completion}%`);
   ok(typeof stats.programStatus === 'string', `Program status = ${stats.programStatus}`);
 
-  const exercises = await get('/exercises');
+  const exercises = await get('/exercises?scope=active');
   const names = exercises.map((e) => e.name ?? e);
   ok(names.includes('Squat'), `Exercises list includes Squat (${names.length} total)`);
   ok(names.includes('Pull-ups'), 'Exercises list includes Pull-ups (bodyweight_sets)');
   const pullMeta = exercises.find((e) => e.name === 'Pull-ups');
   ok(pullMeta?.loggingMode === 'bodyweight_sets', 'Pull-ups loggingMode is bodyweight_sets');
 
-  const pullProgress = await get('/progress/exercise/Pull-ups');
+  const pullProgress = await get('/progress/exercise/Pull-ups?scope=active');
   ok(pullProgress.length >= 1, `Pull-ups progress has ${pullProgress.length} point(s)`);
   ok(pullProgress[0].reps != null, 'Pull-ups progress includes reps');
+
+  const activated = await post(`/programs/${active.id}/activate`, {});
+  ok(activated.isActive === true, 'Activate program returns active program');
 
   console.log(`\n${failures === 0 ? 'ALL SMOKE TESTS PASSED' : `${failures} FAILURE(S)`}`);
   process.exit(failures === 0 ? 0 : 1);

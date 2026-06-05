@@ -24,11 +24,22 @@ async function request(path, options = {}) {
   return res.json();
 }
 
+function withScope(params = {}, scope) {
+  const next = { ...params };
+  if (scope) next.scope = scope;
+  return next;
+}
+
 export const api = {
   today: (date) => request(`/today${date ? `?date=${date}` : ''}`),
-  stats: () => request('/stats'),
+  stats: (scope = 'active') => request(`/stats?scope=${scope}`),
   settings: () => request('/settings'),
   updateSettings: (body) => request('/settings', { method: 'PUT', body: JSON.stringify(body) }),
+  programs: () => request('/programs'),
+  program: (id) => request(`/programs/${id}`),
+  updateProgram: (id, body) =>
+    request(`/programs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
+  activateProgram: (id) => request(`/programs/${id}/activate`, { method: 'POST' }),
   programDay: (dayNumber) => request(`/program/day/${dayNumber}`),
   prefillDay: (dayNumber) => request(`/prefill/day/${dayNumber}`),
   sessions: (params = {}) => {
@@ -39,11 +50,11 @@ export const api = {
   },
   session: (id) => request(`/sessions/${id}`),
   createSession: (body) => request('/sessions', { method: 'POST', body: JSON.stringify(body) }),
-  exercises: () => request('/exercises'),
-  exerciseProgress: (name) => request(`/progress/exercise/${encodeURIComponent(name)}`),
+  exercises: (scope = 'active') => request(`/exercises?scope=${scope}`),
+  exerciseProgress: (name, scope = 'active') =>
+    request(`/progress/exercise/${encodeURIComponent(name)}?scope=${scope}`),
 };
 
-// Local calendar date (YYYY-MM-DD) so day resolution matches the user's TZ.
 export function localIsoDate(d = new Date()) {
   const y = d.getFullYear();
   const m = String(d.getMonth() + 1).padStart(2, '0');

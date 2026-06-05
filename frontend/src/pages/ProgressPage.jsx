@@ -10,6 +10,7 @@ import {
 } from 'recharts';
 import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
+import ScopeToggle from '../components/ScopeToggle.jsx';
 import { Card } from '../components/Cards.jsx';
 
 function formatDate(iso) {
@@ -42,6 +43,7 @@ function ChartTooltip({ active, payload, label }) {
 }
 
 export default function ProgressPage() {
+  const [scope, setScope] = useState('active');
   const [exercises, setExercises] = useState(null);
   const [selected, setSelected] = useState('');
   const [series, setSeries] = useState(null);
@@ -56,14 +58,15 @@ export default function ProgressPage() {
     if (!selectedMeta || !series?.length) return false;
     if (selectedMeta.loggingMode === 'bodyweight_sets') return false;
     if (selectedMeta.loggingMode === 'weighted_sets') return true;
-    // variant: show weight only when logged sessions include weight data
     return series.some((r) => r.weight != null);
   }, [selectedMeta, series]);
 
   useEffect(() => {
     let active = true;
+    setExercises(null);
+    setSelected('');
     api
-      .exercises()
+      .exercises(scope)
       .then((list) => {
         if (!active) return;
         setExercises(list);
@@ -73,14 +76,14 @@ export default function ProgressPage() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [scope]);
 
   useEffect(() => {
     if (!selected) return;
     let active = true;
     setSeries(null);
     api
-      .exerciseProgress(selected)
+      .exerciseProgress(selected, scope)
       .then((rows) => {
         if (!active) return;
         setSeries(
@@ -96,7 +99,7 @@ export default function ProgressPage() {
     return () => {
       active = false;
     };
-  }, [selected]);
+  }, [selected, scope]);
 
   return (
     <>
@@ -104,6 +107,7 @@ export default function ProgressPage() {
       <div className="screen">
         <h1 className="heading" style={{ marginTop: 12 }}>Progress</h1>
         <p className="subtitle">Track your trends over time.</p>
+        <ScopeToggle value={scope} onChange={setScope} />
 
         {error && <div className="empty">{error}</div>}
 
