@@ -7,8 +7,6 @@ import WorkoutForm from '../components/WorkoutForm.jsx';
 import { DumbbellIcon } from '../components/Icons.jsx';
 import {
   initExerciseValue,
-  exerciseFromLog,
-  valueFromLog,
   buildLogsFromRows,
   createAdHocExercise,
 } from '../workoutHelpers.js';
@@ -35,8 +33,6 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [editing, setEditing] = useState(false);
-  const [editSessionId, setEditSessionId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -74,47 +70,6 @@ export default function TodayPage() {
     () => exercises.filter((ex) => !removedIds.has(ex.id)),
     [exercises, removedIds]
   );
-
-  function startEdit() {
-    const session = today?.session;
-    if (!session) return;
-
-    const templateByName = new Map(
-      (day?.exercises || today.programDay?.exercises || []).map((ex) => [ex.name, ex])
-    );
-    const editRows = session.logs.map((log) => {
-      const template = templateByName.get(log.exerciseName);
-      return exerciseFromLog(
-        {
-          id: log.id,
-          exerciseName: log.exerciseName,
-          sortOrder: log.sortOrder,
-          sets: log.sets,
-          completed: log.completed,
-          variantKey: log.variantKey,
-        },
-        template
-      );
-    });
-
-    const init = {};
-    for (const ex of editRows) {
-      const log = session.logs.find((l) => l.exerciseName === ex.name);
-      init[ex.id] = valueFromLog({
-        ...log,
-        exercise_name: log.exerciseName,
-        variant_key: log.variantKey,
-      });
-    }
-
-    setExercises(editRows);
-    setValues(init);
-    setExertion(session.exertion ?? null);
-    setNotes(session.sessionNotes ?? '');
-    setEditSessionId(session.id);
-    setRemovedIds(new Set());
-    setEditing(true);
-  }
 
   function handleExerciseChange(id, value) {
     setValues((prev) => ({ ...prev, [id]: value }));
@@ -174,31 +129,16 @@ export default function TodayPage() {
     setError(null);
     try {
       const logs = buildLogsFromRows(rows);
-      if (editSessionId) {
-        await api.updateSession(editSessionId, {
-          exertion,
-          sessionNotes: notes || null,
-          logs,
-        });
-        setEditing(false);
-        const date = localIsoDate();
-        const t = await api.today(date);
-        setToday(t);
-      } else {
-        await api.createSession({
-          workoutDate: localIsoDate(),
-          dayNumber: today.dayNumber,
-          exertion,
-          sessionNotes: notes || null,
-          logs,
-        });
-        const date = localIsoDate();
-        const [t, s] = await Promise.all([api.today(date), api.stats()]);
-        setToday(t);
-        setStats(s);
-        setEditing(false);
-      }
-      const s = await api.stats();
+      await api.createSession({
+        workoutDate: localIsoDate(),
+        dayNumber: today.dayNumber,
+        exertion,
+        sessionNotes: notes || null,
+        logs,
+      });
+      const date = localIsoDate();
+      const [t, s] = await Promise.all([api.today(date), api.stats()]);
+      setToday(t);
       setStats(s);
     } catch (e) {
       setError(e.message);
@@ -229,9 +169,7 @@ export default function TodayPage() {
     );
   }
 
-  const showDayComplete =
-    !editing &&
-    (today?.mode === 'rest' || today?.alreadyLogged);
+  const showDayComplete = today?.mode === 'rest' || today?.alreadyLogged;
 
   if (showDayComplete) {
     return (
@@ -239,7 +177,6 @@ export default function TodayPage() {
         mode={today?.mode === 'rest' ? 'rest' : 'complete'}
         weekday={today?.weekday}
         stats={stats}
-        onEdit={today?.alreadyLogged && today?.mode === 'workout' ? startEdit : undefined}
         showAdhocLink
       />
     );
@@ -268,14 +205,12 @@ export default function TodayPage() {
           onNotesChange={setNotes}
           onSave={handleSave}
           saving={saving}
-          saveLabel={editSessionId ? 'Update workout' : 'Save Workout'}
+          saveLabel="Save Workout"
           error={error}
           footer={
-            !editSessionId && (
-              <Link to="/session/new" className="adhoc-link">
-                Log one-off workout instead
-              </Link>
-            )
+            <Link to="/session/new" className="adhoc-link">
+              Log one-off workout instead
+            </Link>
           }
         />
       </div>

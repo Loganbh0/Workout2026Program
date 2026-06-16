@@ -14,7 +14,7 @@ const WEEKDAY_TITLES = {
   friday: 'Friday',
 };
 
-export default function DayCompleteView({ mode, weekday, stats, onEdit, showAdhocLink }) {
+export default function DayCompleteView({ mode, weekday, stats, showAdhocLink }) {
   const isRest = mode === 'rest';
   const title = isRest ? 'Rest Day' : 'Workout Complete';
   const weekdayLabel = WEEKDAY_TITLES[weekday] || 'Today';
@@ -50,14 +50,6 @@ export default function DayCompleteView({ mode, weekday, stats, onEdit, showAdho
             value={completion}
           />
         </div>
-
-        {!isRest && onEdit && (
-          <div className="section">
-            <button type="button" className="btn btn--secondary" onClick={onEdit}>
-              Edit workout
-            </button>
-          </div>
-        )}
 
         {showAdhocLink && (
           <Link to="/session/new" className="adhoc-link">
