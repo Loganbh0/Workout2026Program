@@ -34,7 +34,7 @@ The program is **data-driven**. Exercises live in [`backend/data/program.json`](
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the migrations (in order) against your project. Either:
-   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0005_flexible_program_days.sql`, or
+   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0006_adhoc_sessions.sql`, or
    - **Supabase CLI:**
      ```bash
      supabase link --project-ref <your-ref>
@@ -151,15 +151,16 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | GET | `/programs` | List programs for Home (`id`, `displayName`, `dayCount`, `isActive`) |
 | POST | `/programs` | Create program with days + exercises |
 | GET | `/programs/:id` | Program detail + weekly days (includes `exercises[]` per day) |
-| PUT | `/programs/:id` | Rename program (`displayName`) |
+| PUT | `/programs/:id` | Rename (`displayName`) or full update with `days[]` + `durationWeeks` |
 | POST | `/programs/:id/activate` | Set active program; body `{ startDate: "YYYY-MM-DD" }` required |
-| GET | `/today?date=YYYY-MM-DD` | Resolve day from active program weekday schedule; includes `alreadyLogged` |
+| GET | `/today?date=YYYY-MM-DD` | Resolve day; includes `alreadyLogged`, `sessionId`, `session` when logged |
 | GET | `/stats?scope=active\|all` | Streak, check-ins, completion %, current week |
 | GET | `/settings` / PUT `/settings` | Global app settings |
 | GET | `/program/day/:n` | Exercises + targets for a day (active program) |
 | GET | `/prefill/day/:n` | Day exercises with last-logged weight/reps |
 | GET | `/sessions?scope=active\|all` | History list (`?from=&to=&dayNumber=`) |
 | GET | `/sessions/:id` | One session with exercise logs |
-| POST | `/sessions` | Create a session + logs (auto-attaches active `program_id`) |
+| POST | `/sessions` | Create session; program (`dayNumber`) or adhoc (`sessionType: "adhoc"`, `title`) |
+| PUT | `/sessions/:id` | Update session exertion, notes, and logs |
 | GET | `/exercises?scope=active\|all` | Logged exercises (`{ name, loggingMode }[]`; excludes completion-only) |
 | GET | `/progress/exercise/:name?scope=active\|all` | Time series for charts |

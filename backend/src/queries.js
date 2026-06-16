@@ -131,16 +131,94 @@ export async function getProgram(id) {
   };
 }
 
-export async function updateProgram(id, { displayName }) {
-  const { rows } = await query(
-    `update programs
-        set display_name = coalesce($2, display_name)
-      where id = $1
-      returning *`,
-    [id, displayName ?? null]
-  );
-  if (!rows[0]) return null;
-  return mapProgram(rows[0]);
+export async function updateProgram(id, body = {}) {
+  const { displayName, durationWeeks, days } = body;
+
+  if (!days) {
+    const { rows } = await query(
+      `update programs
+          set display_name = coalesce($2, display_name)
+        where id = $1
+        returning *`,
+      [id, displayName?.trim() ?? null]
+    );
+    if (!rows[0]) return null;
+    return getProgram(id);
+  }
+
+  const validated = validateCreateProgram({
+    displayName: displayName ?? (await getProgram(id))?.displayName,
+    durationWeeks,
+    days,
+  });
+
+  const sessionsPerWeek = validated.days.length;
+  const totalWorkouts = validated.durationWeeks * sessionsPerWeek;
+
+  await withTransaction(async (client) => {
+    const { rows } = await client.query(
+      `update programs
+          set display_name = $2,
+              duration_weeks = $3,
+              sessions_per_week = $4,
+              total_workouts = $5
+        where id = $1
+        returning id`,
+      [id, validated.displayName, validated.durationWeeks, sessionsPerWeek, totalWorkouts]
+    );
+    if (!rows[0]) {
+      const err = new Error('Program not found');
+      err.status = 404;
+      throw err;
+    }
+
+    await client.query('delete from program_days where program_id = $1', [id]);
+    await insertProgramDays(client, id, validated.days);
+  });
+
+  return getProgram(id);
+}
+
+async function insertProgramDays(client, programId, days) {
+  for (let i = 0; i < days.length; i++) {
+    const day = days[i];
+    const dayNumber = i + 1;
+    const { rows: dayRows } = await client.query(
+      `insert into program_days (
+         program_id, day_number, weekday, code, type, title, subtitle
+       ) values ($1, $2, $3, $4, 'lift', $5, $6)
+       returning id`,
+      [
+        programId,
+        dayNumber,
+        day.weekday,
+        `custom_day_${dayNumber}`,
+        day.title.trim(),
+        day.subtitle?.trim() || null,
+      ]
+    );
+    const dayId = dayRows[0].id;
+
+    for (let j = 0; j < day.exercises.length; j++) {
+      const ex = day.exercises[j];
+      const tracksWeight = ex.loggingMode === 'weighted_sets';
+      await client.query(
+        `insert into program_exercises (
+           day_id, sort_order, name, target_sets, target_reps,
+           tracks_weight, logging_mode, is_priority
+         ) values ($1, $2, $3, $4, $5, $6, $7, false)`,
+        [
+          dayId,
+          j + 1,
+          ex.name.trim(),
+          String(ex.targetSets).trim(),
+          ex.targetReps?.trim() || null,
+          tracksWeight,
+          ex.loggingMode,
+        ]
+      );
+    }
+  }
 }
 
 export async function activateProgram(id, { startDate } = {}) {
@@ -274,47 +352,7 @@ export async function createProgram(body) {
       [displayName, slug, durationWeeks, sessionsPerWeek, totalWorkouts]
     );
     const pid = programRows[0].id;
-
-    for (let i = 0; i < days.length; i++) {
-      const day = days[i];
-      const dayNumber = i + 1;
-      const { rows: dayRows } = await client.query(
-        `insert into program_days (
-           program_id, day_number, weekday, code, type, title, subtitle
-         ) values ($1, $2, $3, $4, 'lift', $5, $6)
-         returning id`,
-        [
-          pid,
-          dayNumber,
-          day.weekday,
-          `custom_day_${dayNumber}`,
-          day.title.trim(),
-          day.subtitle?.trim() || null,
-        ]
-      );
-      const dayId = dayRows[0].id;
-
-      for (let j = 0; j < day.exercises.length; j++) {
-        const ex = day.exercises[j];
-        const tracksWeight = ex.loggingMode === 'weighted_sets';
-        await client.query(
-          `insert into program_exercises (
-             day_id, sort_order, name, target_sets, target_reps,
-             tracks_weight, logging_mode, is_priority
-           ) values ($1, $2, $3, $4, $5, $6, $7, false)`,
-          [
-            dayId,
-            j + 1,
-            ex.name.trim(),
-            String(ex.targetSets).trim(),
-            ex.targetReps?.trim() || null,
-            tracksWeight,
-            ex.loggingMode,
-          ]
-        );
-      }
-    }
-
+    await insertProgramDays(client, pid, days);
     return pid;
   });
 
@@ -365,11 +403,39 @@ export async function getProgramDay(dayNumber, programId) {
 async function isAlreadyLogged(programId, workoutDate) {
   const { rows } = await query(
     `select id from workout_sessions
-      where program_id = $1 and workout_date = $2
+      where program_id = $1 and workout_date = $2 and session_type = 'program'
       limit 1`,
     [programId, workoutDate]
   );
   return rows.length > 0;
+}
+
+async function getSessionForDate(programId, workoutDate) {
+  const { rows } = await query(
+    `select id from workout_sessions
+      where program_id = $1 and workout_date = $2 and session_type = 'program'
+      limit 1`,
+    [programId, workoutDate]
+  );
+  if (!rows[0]) return null;
+  return getSession(rows[0].id);
+}
+
+function mapSessionSummary(session) {
+  if (!session) return null;
+  return {
+    id: session.id,
+    exertion: session.exertion,
+    sessionNotes: session.session_notes,
+    logs: session.logs.map((log) => ({
+      id: log.id,
+      exerciseName: log.exercise_name,
+      sortOrder: log.sort_order,
+      completed: log.completed,
+      variantKey: log.variant_key,
+      sets: log.sets,
+    })),
+  };
 }
 
 export async function resolveToday(isoDate) {
@@ -378,6 +444,16 @@ export async function resolveToday(isoDate) {
   const dateIso = toIso(date);
   const weekday = WEEKDAYS[date.getDay()];
   const alreadyLogged = await isAlreadyLogged(program.id, dateIso);
+  const session = alreadyLogged ? await getSessionForDate(program.id, dateIso) : null;
+
+  const base = {
+    weekday,
+    date: dateIso,
+    alreadyLogged,
+    sessionId: session?.id ?? null,
+    session: mapSessionSummary(session),
+    program: mapProgram(program),
+  };
 
   const { rows: dayRows } = await query(
     'select * from program_days where program_id = $1 and weekday = $2',
@@ -385,23 +461,14 @@ export async function resolveToday(isoDate) {
   );
 
   if (!dayRows[0] || weekday === 'saturday' || weekday === 'sunday') {
-    return {
-      mode: 'rest',
-      weekday,
-      date: dateIso,
-      alreadyLogged,
-      program: mapProgram(program),
-    };
+    return { ...base, mode: 'rest' };
   }
 
   const programDay = await getProgramDay(dayRows[0].day_number, program.id);
   return {
+    ...base,
     mode: 'workout',
-    weekday,
     dayNumber: dayRows[0].day_number,
-    date: dateIso,
-    alreadyLogged,
-    program: mapProgram(program),
     programDay,
   };
 }
@@ -442,7 +509,7 @@ export async function getPrefillForDay(dayNumber) {
             el.id, el.exercise_name, el.variant_key, ws.workout_date
        from exercise_logs el
        join workout_sessions ws on ws.id = el.session_id
-      where ws.program_id = $1 and ws.day_number = $2
+      where ws.program_id = $1 and ws.day_number = $2 and ws.session_type = 'program'
       order by el.exercise_name, ws.workout_date desc, el.id desc`,
     [program.id, dayNumber]
   );
@@ -487,13 +554,14 @@ export async function listSessions({ from, to, dayNumber, limit = 100, scope = '
   const where = conditions.length ? `where ${conditions.join(' and ')}` : '';
   const { rows } = await query(
     `select ws.id, ws.workout_date, ws.day_number, ws.exertion, ws.session_notes,
-            ws.completed_at, ws.program_id, pd.title, pd.type,
+            ws.completed_at, ws.program_id, ws.session_type, ws.title,
+            coalesce(ws.title, pd.title) as display_title, pd.type,
             count(el.id)::int as exercise_count
        from workout_sessions ws
        left join program_days pd on pd.program_id = ws.program_id and pd.day_number = ws.day_number
        left join exercise_logs el on el.session_id = ws.id
        ${where}
-      group by ws.id, pd.title, pd.type
+      group by ws.id, ws.title, pd.title, pd.type
       order by ws.workout_date desc, ws.id desc
       limit $${params.length}`,
     params
@@ -503,7 +571,7 @@ export async function listSessions({ from, to, dayNumber, limit = 100, scope = '
 
 export async function getSession(id) {
   const { rows: sessionRows } = await query(
-    `select ws.*, pd.title, pd.subtitle, pd.type
+    `select ws.*, coalesce(ws.title, pd.title) as display_title, pd.subtitle, pd.type
        from workout_sessions ws
        left join program_days pd on pd.program_id = ws.program_id and pd.day_number = ws.day_number
       where ws.id = $1`,
@@ -525,52 +593,104 @@ export async function getSession(id) {
   return { ...sessionRows[0], logs: logsWithSets };
 }
 
-export async function createSession({ workoutDate, dayNumber, exertion, sessionNotes, logs }) {
+async function insertSessionLogs(client, sessionId, logs) {
+  for (const log of logs || []) {
+    const { rows: logRows } = await client.query(
+      `insert into exercise_logs (session_id, exercise_name, sort_order, completed, variant_key)
+       values ($1, $2, $3, $4, $5)
+       returning id`,
+      [
+        sessionId,
+        log.exerciseName,
+        log.sortOrder ?? 0,
+        log.completed ?? false,
+        log.variantKey ?? null,
+      ]
+    );
+    const logId = logRows[0].id;
+
+    for (const set of log.sets || []) {
+      await client.query(
+        `insert into exercise_set_logs (exercise_log_id, set_number, weight_lbs, reps, assisted_band)
+         values ($1, $2, $3, $4, $5)`,
+        [
+          logId,
+          set.setNumber,
+          set.weightLbs ?? null,
+          set.reps ?? null,
+          set.assistedBand ?? false,
+        ]
+      );
+    }
+  }
+}
+
+export async function createSession({
+  workoutDate,
+  dayNumber,
+  exertion,
+  sessionNotes,
+  logs,
+  sessionType = 'program',
+  title,
+}) {
   const program = await requireActiveProgram();
+  const isAdhoc = sessionType === 'adhoc';
+
+  if (isAdhoc) {
+    if (!title?.trim()) {
+      const err = new Error('title is required for adhoc sessions');
+      err.status = 400;
+      throw err;
+    }
+  } else if (!dayNumber) {
+    const err = new Error('dayNumber is required for program sessions');
+    err.status = 400;
+    throw err;
+  }
 
   const sessionId = await withTransaction(async (client) => {
     const { rows } = await client.query(
-      `insert into workout_sessions (workout_date, day_number, exertion, session_notes, program_id)
-       values ($1, $2, $3, $4, $5)
+      `insert into workout_sessions (
+         workout_date, day_number, exertion, session_notes, program_id, session_type, title
+       ) values ($1, $2, $3, $4, $5, $6, $7)
        returning id`,
-      [workoutDate, dayNumber, exertion ?? null, sessionNotes ?? null, program.id]
+      [
+        workoutDate,
+        isAdhoc ? null : dayNumber,
+        exertion ?? null,
+        sessionNotes ?? null,
+        program.id,
+        isAdhoc ? 'adhoc' : 'program',
+        isAdhoc ? title.trim() : null,
+      ]
     );
     const id = rows[0].id;
-
-    for (const log of logs || []) {
-      const { rows: logRows } = await client.query(
-        `insert into exercise_logs (session_id, exercise_name, sort_order, completed, variant_key)
-         values ($1, $2, $3, $4, $5)
-         returning id`,
-        [
-          id,
-          log.exerciseName,
-          log.sortOrder ?? 0,
-          log.completed ?? false,
-          log.variantKey ?? null,
-        ]
-      );
-      const logId = logRows[0].id;
-
-      for (const set of log.sets || []) {
-        await client.query(
-          `insert into exercise_set_logs (exercise_log_id, set_number, weight_lbs, reps, assisted_band)
-           values ($1, $2, $3, $4, $5)`,
-          [
-            logId,
-            set.setNumber,
-            set.weightLbs ?? null,
-            set.reps ?? null,
-            set.assistedBand ?? false,
-          ]
-        );
-      }
-    }
-
+    await insertSessionLogs(client, id, logs);
     return id;
   });
 
   return getSession(sessionId);
+}
+
+export async function updateSession(id, { exertion, sessionNotes, logs, title }) {
+  const existing = await getSession(id);
+  if (!existing) return null;
+
+  await withTransaction(async (client) => {
+    await client.query(
+      `update workout_sessions
+          set exertion = $2,
+              session_notes = $3,
+              title = coalesce($4, title)
+        where id = $1`,
+      [id, exertion ?? null, sessionNotes ?? null, title?.trim() ?? null]
+    );
+    await client.query('delete from exercise_logs where session_id = $1', [id]);
+    await insertSessionLogs(client, id, logs);
+  });
+
+  return getSession(id);
 }
 
 async function getExerciseLoggingMode(name, programId) {
@@ -585,7 +705,25 @@ async function getExerciseLoggingMode(name, programId) {
   }
   sql += ' limit 1';
   const { rows } = await query(sql, params);
-  return rows[0]?.logging_mode ?? null;
+  if (rows[0]?.logging_mode) return rows[0].logging_mode;
+
+  const inferParams = [name];
+  let inferSql = `select bool_or(esl.weight_lbs is not null) as has_weight,
+                         bool_or(esl.reps is not null) as has_reps
+                    from exercise_logs el
+                    join workout_sessions ws on ws.id = el.session_id
+                    left join exercise_set_logs esl on esl.exercise_log_id = el.id
+                   where el.exercise_name = $1`;
+  if (programId) {
+    inferParams.push(programId);
+    inferSql += ` and ws.program_id = $2`;
+  }
+  inferSql += ' limit 1';
+  const { rows: inferRows } = await query(inferSql, inferParams);
+  if (!inferRows[0]) return null;
+  if (inferRows[0].has_weight) return 'weighted_sets';
+  if (inferRows[0].has_reps) return 'bodyweight_sets';
+  return 'completion_only';
 }
 
 export async function getExerciseProgress(name, scope = 'active') {
@@ -628,12 +766,33 @@ export async function listLoggedExercises(scope = 'active') {
   }
 
   const { rows } = await query(
-    `select distinct el.exercise_name, pe.logging_mode
+    `select distinct el.exercise_name,
+            coalesce(
+              pe.logging_mode,
+              case
+                when bool_or(esl.weight_lbs is not null) then 'weighted_sets'
+                when bool_or(esl.reps is not null) then 'bodyweight_sets'
+                else 'completion_only'
+              end
+            ) as logging_mode
        from exercise_logs el
        join workout_sessions ws on ws.id = el.session_id
-       join program_exercises pe on pe.name = el.exercise_name
-       join program_days pd on pd.id = pe.day_id and pd.program_id = ws.program_id
-      where pe.logging_mode = any($1::text[])${programFilter}
+       left join program_exercises pe on pe.name = el.exercise_name
+       left join program_days pd on pd.id = pe.day_id and pd.program_id = ws.program_id
+       left join exercise_set_logs esl on esl.exercise_log_id = el.id
+      where (
+        pe.logging_mode = any($1::text[])
+        or ws.session_type = 'adhoc'
+      )${programFilter}
+      group by el.exercise_name, pe.logging_mode
+      having coalesce(
+        pe.logging_mode,
+        case
+          when bool_or(esl.weight_lbs is not null) then 'weighted_sets'
+          when bool_or(esl.reps is not null) then 'bodyweight_sets'
+          else 'completion_only'
+        end
+      ) = any($1::text[])
       order by el.exercise_name`,
     params
   );
@@ -674,13 +833,16 @@ export async function getStats(scope = 'active') {
   if (scoped) {
     if (startDate && !beforeStart) {
       const { rows: countRows } = await query(
-        'select count(*)::int as total from workout_sessions where program_id = $1 and workout_date >= $2',
+        `select count(*)::int as total from workout_sessions
+          where program_id = $1 and workout_date >= $2 and session_type = 'program'`,
         [program.id, startDate]
       );
       total = countRows[0].total;
     }
   } else {
-    const { rows: countRows } = await query('select count(*)::int as total from workout_sessions');
+    const { rows: countRows } = await query(
+      `select count(*)::int as total from workout_sessions where session_type = 'program'`
+    );
     total = countRows[0].total;
   }
 

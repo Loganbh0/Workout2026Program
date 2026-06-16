@@ -38,6 +38,8 @@ export const api = {
   programs: () => request('/programs'),
   program: (id) => request(`/programs/${id}`),
   createProgram: (body) => request('/programs', { method: 'POST', body: JSON.stringify(body) }),
+  updateSession: (id, body) =>
+    request(`/sessions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateProgram: (id, body) =>
     request(`/programs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   activateProgram: (id, body) =>

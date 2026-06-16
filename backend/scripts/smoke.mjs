@@ -210,6 +210,67 @@ const run = async () => {
   await post(`/programs/${active.id}/activate`, { startDate: '2026-06-08' });
   ok(true, 'Restored original active program');
 
+  const checkInsBefore = (await get('/stats?scope=active')).checkIns;
+
+  const adhoc = await post('/sessions', {
+    workoutDate: nextWeekday(1),
+    sessionType: 'adhoc',
+    title: 'Smoke Adhoc',
+    exertion: 3,
+    logs: [
+      {
+        exerciseName: 'Smoke Extra Lift',
+        sortOrder: 1,
+        completed: true,
+        variantKey: null,
+        sets: [{ setNumber: 1, weightLbs: 100, reps: 5, assistedBand: false }],
+      },
+    ],
+  });
+  ok(adhoc.session_type === 'adhoc', 'Adhoc session created');
+  ok(adhoc.title === 'Smoke Adhoc', 'Adhoc session has title');
+
+  const statsAfterAdhoc = await get('/stats?scope=active');
+  ok(statsAfterAdhoc.checkIns === checkInsBefore, 'Adhoc does not increment program check-ins');
+
+  const updated = await put(`/sessions/${created.id}`, {
+    exertion: 5,
+    sessionNotes: 'Updated smoke',
+    logs: [
+      {
+        exerciseName: 'Squat',
+        sortOrder: 2,
+        completed: true,
+        variantKey: null,
+        sets: [{ setNumber: 1, weightLbs: 200, reps: 5, assistedBand: false }],
+      },
+    ],
+  });
+  ok(updated.exertion === 5, 'Session update saves exertion');
+  ok(updated.logs.length === 1, 'Session update replaces logs');
+
+  const todayLogged = await get(`/today?date=${nextWeekday(1)}`);
+  ok(todayLogged.alreadyLogged === true, 'Today includes session when logged');
+  ok(todayLogged.sessionId != null, 'Today returns sessionId');
+  ok(todayLogged.session?.logs?.length >= 1, 'Today returns session payload');
+
+  const editedProgram = await put(`/programs/${custom.id}`, {
+    displayName: 'Smoke 3-Day Split Updated',
+    durationWeeks: 4,
+    days: custom.days.map((d) => ({
+      weekday: d.weekday,
+      title: `${d.title} v2`,
+      exercises: d.exercises.map((ex) => ({
+        name: ex.name,
+        targetSets: ex.targetSets,
+        targetReps: ex.targetReps,
+        loggingMode: ex.loggingMode,
+      })),
+    })),
+  });
+  ok(editedProgram.displayName === 'Smoke 3-Day Split Updated', 'Full program update works');
+  ok(editedProgram.days[0].title.endsWith('v2'), 'Program day title updated');
+
   console.log(`\n${failures === 0 ? 'ALL SMOKE TESTS PASSED' : `${failures} FAILURE(S)`}`);
   process.exit(failures === 0 ? 0 : 1);
 };

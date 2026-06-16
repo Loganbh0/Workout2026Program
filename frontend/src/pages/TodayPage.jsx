@@ -1,12 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { api, localIsoDate } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
 import DayCompleteView from '../components/DayCompleteView.jsx';
-import { ProgressCard, StatsCard } from '../components/Cards.jsx';
-import ExerciseCard from '../components/ExerciseCard.jsx';
-import ExertionPicker from '../components/ExertionPicker.jsx';
-import { DumbbellIcon, CheckIcon } from '../components/Icons.jsx';
-import { parseSetCount, emptySets, resolveLoggingMode } from '../setCount.js';
+import WorkoutForm from '../components/WorkoutForm.jsx';
+import { DumbbellIcon } from '../components/Icons.jsx';
+import {
+  initExerciseValue,
+  exerciseFromLog,
+  valueFromLog,
+  buildLogsFromRows,
+  createAdHocExercise,
+} from '../workoutHelpers.js';
+import '../components/AdHocExerciseCard.css';
 
 const todayLabel = () =>
   new Date().toLocaleDateString(undefined, {
@@ -15,58 +21,22 @@ const todayLabel = () =>
     day: 'numeric',
   });
 
-function normalizeVariantOptions(exercise) {
-  const raw = exercise.variant_options;
-  if (!raw) return [];
-  if (Array.isArray(raw)) return raw;
-  try {
-    return typeof raw === 'string' ? JSON.parse(raw) : [];
-  } catch {
-    return [];
-  }
-}
-
-function initExerciseValue(exercise) {
-  const setCount = parseSetCount(exercise.target_sets);
-  const variantOptions = normalizeVariantOptions(exercise);
-  const variantKey =
-    exercise.prefill?.variantKey ||
-    (exercise.logging_mode === 'variant' ? variantOptions[0]?.key ?? null : null);
-  const mode = resolveLoggingMode(exercise, variantKey);
-  const showSets = mode !== 'completion_only';
-
-  let sets = emptySets(setCount);
-  if (showSets && exercise.prefill?.sets?.length) {
-    sets = emptySets(setCount).map((row, i) => ({
-      ...row,
-      ...(exercise.prefill.sets[i] || {}),
-      setNumber: i + 1,
-    }));
-  }
-
-  return {
-    completed: false,
-    variantKey,
-    sets: showSets ? sets : [],
-  };
-}
-
-function formatStartLabel(startDate) {
-  const d = new Date(`${startDate}T12:00:00`);
-  return `Starts ${d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`;
-}
+let nextTempId = 1;
 
 export default function TodayPage() {
   const [today, setToday] = useState(null);
   const [stats, setStats] = useState(null);
   const [day, setDay] = useState(null);
+  const [exercises, setExercises] = useState([]);
   const [values, setValues] = useState({});
+  const [removedIds, setRemovedIds] = useState(() => new Set());
   const [exertion, setExertion] = useState(null);
   const [notes, setNotes] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [editing, setEditing] = useState(false);
+  const [editSessionId, setEditSessionId] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -78,13 +48,11 @@ export default function TodayPage() {
         setToday(t);
         setStats(s);
 
-        const showWorkoutForm =
-          t.mode === 'workout' && !t.alreadyLogged;
-
-        if (showWorkoutForm) {
+        if (t.mode === 'workout' && !t.alreadyLogged) {
           const d = await api.prefillDay(t.dayNumber);
           if (!active) return;
           setDay(d);
+          setExercises(d.exercises);
           const init = {};
           for (const ex of d.exercises) {
             init[ex.id] = initExerciseValue(ex);
@@ -102,54 +70,134 @@ export default function TodayPage() {
     };
   }, []);
 
-  const grouped = useMemo(() => {
-    if (!day) return [];
-    const groups = [];
-    let current = null;
-    for (const ex of day.exercises) {
-      const block = ex.block || null;
-      if (!current || current.block !== block) {
-        current = { block, items: [] };
-        groups.push(current);
-      }
-      current.items.push(ex);
+  const visibleExercises = useMemo(
+    () => exercises.filter((ex) => !removedIds.has(ex.id)),
+    [exercises, removedIds]
+  );
+
+  function startEdit() {
+    const session = today?.session;
+    if (!session) return;
+
+    const templateByName = new Map(
+      (day?.exercises || today.programDay?.exercises || []).map((ex) => [ex.name, ex])
+    );
+    const editRows = session.logs.map((log) => {
+      const template = templateByName.get(log.exerciseName);
+      return exerciseFromLog(
+        {
+          id: log.id,
+          exerciseName: log.exerciseName,
+          sortOrder: log.sortOrder,
+          sets: log.sets,
+          completed: log.completed,
+          variantKey: log.variantKey,
+        },
+        template
+      );
+    });
+
+    const init = {};
+    for (const ex of editRows) {
+      const log = session.logs.find((l) => l.exerciseName === ex.name);
+      init[ex.id] = valueFromLog({
+        ...log,
+        exercise_name: log.exerciseName,
+        variant_key: log.variantKey,
+      });
     }
-    return groups;
-  }, [day]);
+
+    setExercises(editRows);
+    setValues(init);
+    setExertion(session.exertion ?? null);
+    setNotes(session.sessionNotes ?? '');
+    setEditSessionId(session.id);
+    setRemovedIds(new Set());
+    setEditing(true);
+  }
+
+  function handleExerciseChange(id, value) {
+    setValues((prev) => ({ ...prev, [id]: value }));
+  }
+
+  function handleExerciseMetaChange(id, patch) {
+    setExercises((prev) =>
+      prev.map((ex) => (ex.id === id ? { ...ex, ...patch, name: patch.name ?? ex.name } : ex))
+    );
+    if (patch.logging_mode) {
+      setValues((prev) => ({
+        ...prev,
+        [id]: {
+          completed: prev[id]?.completed ?? false,
+          variantKey: null,
+          sets: patch.logging_mode === 'completion_only' ? [] : prev[id]?.sets ?? [],
+        },
+      }));
+    }
+  }
+
+  function handleAddExercise() {
+    const id = `extra-${nextTempId++}`;
+    const ex = createAdHocExercise(id);
+    setExercises((prev) => [...prev, ex]);
+    setValues((prev) => ({ ...prev, [id]: initExerciseValue(ex) }));
+  }
+
+  function handleRemoveExercise(id) {
+    const ex = exercises.find((e) => e.id === id);
+    if (ex?.isAdHoc) {
+      setExercises((prev) => prev.filter((e) => e.id !== id));
+      setValues((prev) => {
+        const next = { ...prev };
+        delete next[id];
+        return next;
+      });
+    } else {
+      setRemovedIds((prev) => new Set(prev).add(id));
+    }
+  }
 
   async function handleSave() {
-    if (!day) return;
+    const rows = visibleExercises.map((ex) => ({ exercise: ex, value: values[ex.id] || {} }));
+    if (!rows.length) {
+      setError('Add at least one exercise.');
+      return;
+    }
+    for (const row of rows) {
+      if (!row.exercise.name?.trim()) {
+        setError('Every exercise needs a name.');
+        return;
+      }
+    }
+
     setSaving(true);
     setError(null);
     try {
-      const logs = day.exercises.map((ex) => {
-        const v = values[ex.id] || {};
-        const mode = resolveLoggingMode(ex, v.variantKey);
-        return {
-          exerciseName: ex.name,
-          sortOrder: ex.sort_order,
-          completed: v.completed ?? false,
-          variantKey: v.variantKey ?? null,
-          sets:
-            mode === 'completion_only'
-              ? []
-              : (v.sets || []).map((s) => ({
-                  setNumber: s.setNumber,
-                  weightLbs: s.weightLbs ?? null,
-                  reps: s.reps ?? null,
-                  assistedBand: s.assistedBand ?? false,
-                })),
-        };
-      });
-      await api.createSession({
-        workoutDate: localIsoDate(),
-        dayNumber: today.dayNumber,
-        exertion,
-        sessionNotes: notes || null,
-        logs,
-      });
-      setSaved(true);
-      setToday((prev) => (prev ? { ...prev, alreadyLogged: true } : prev));
+      const logs = buildLogsFromRows(rows);
+      if (editSessionId) {
+        await api.updateSession(editSessionId, {
+          exertion,
+          sessionNotes: notes || null,
+          logs,
+        });
+        setEditing(false);
+        const date = localIsoDate();
+        const t = await api.today(date);
+        setToday(t);
+      } else {
+        await api.createSession({
+          workoutDate: localIsoDate(),
+          dayNumber: today.dayNumber,
+          exertion,
+          sessionNotes: notes || null,
+          logs,
+        });
+        const date = localIsoDate();
+        const [t, s] = await Promise.all([api.today(date), api.stats()]);
+        setToday(t);
+        setStats(s);
+        setEditing(false);
+      }
       const s = await api.stats();
       setStats(s);
     } catch (e) {
@@ -182,9 +230,8 @@ export default function TodayPage() {
   }
 
   const showDayComplete =
-    today?.mode === 'rest' ||
-    today?.alreadyLogged ||
-    saved;
+    !editing &&
+    (today?.mode === 'rest' || today?.alreadyLogged);
 
   if (showDayComplete) {
     return (
@@ -192,110 +239,45 @@ export default function TodayPage() {
         mode={today?.mode === 'rest' ? 'rest' : 'complete'}
         weekday={today?.weekday}
         stats={stats}
+        onEdit={today?.alreadyLogged && today?.mode === 'workout' ? startEdit : undefined}
+        showAdhocLink
       />
     );
   }
 
-  const pd = today.programDay || day;
-  const checkIns = stats?.checkIns ?? 0;
-  const totalWorkouts = stats?.totalWorkouts ?? 40;
-  const completion = stats?.completion ?? 0;
-
-  const progressLabel =
-    stats?.programStatus === 'pending' && stats?.startDate
-      ? formatStartLabel(stats.startDate)
-      : stats?.currentWeek
-      ? `Week ${stats.currentWeek} of ${stats.durationWeeks}`
-      : 'Progress';
+  const pd = today?.programDay || day;
 
   return (
     <>
       <TopNav title="Today" right={<span className="dim" style={{ fontSize: 13 }}>{todayLabel()}</span>} />
       <div className="screen">
-        <DumbbellIcon className="page-icon" width={44} height={44} />
-        <h1 className="heading">{pd?.title}</h1>
-        {pd?.subtitle && <p className="subtitle">{pd.subtitle}</p>}
-
-        <div className="section">
-          <ProgressCard
-            label={progressLabel}
-            count={`${checkIns}/${totalWorkouts} workouts`}
-            value={completion}
-          />
-        </div>
-
-        <div className="section">
-          <StatsCard
-            stats={[
-              { label: 'Streak', value: stats?.streak ?? 0 },
-              { label: 'Check-Ins', value: checkIns },
-              { label: 'Completion', value: `${completion}%` },
-            ]}
-          />
-        </div>
-
-        <div className="section">
-          <p className="section-label">Exercises</p>
-          <div className="stack">
-            {grouped.map((group, gi) => (
-              <div key={gi}>
-                {group.block && <div className="block-label">{group.block}</div>}
-                <div className="stack">
-                  {group.items.map((ex) => (
-                    <ExerciseCard
-                      key={ex.id}
-                      exercise={ex}
-                      value={
-                        values[ex.id] || {
-                          completed: false,
-                          variantKey: null,
-                          sets: [],
-                        }
-                      }
-                      onChange={(v) => setValues((prev) => ({ ...prev, [ex.id]: v }))}
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        <div className="section">
-          <p className="section-label">Effort</p>
-          <ExertionPicker value={exertion} onChange={setExertion} />
-        </div>
-
-        <div className="section">
-          <p className="section-label">Notes</p>
-          <textarea
-            className="notes"
-            placeholder="How did it feel? PRs, energy, soreness…"
-            value={notes}
-            onChange={(e) => setNotes(e.target.value)}
-            rows={3}
-          />
-        </div>
-
-        {error && <div className="empty" style={{ paddingBottom: 0 }}>{error}</div>}
-
-        <div className="section">
-          <button
-            className={`btn${saved ? ' btn--done' : ''}`}
-            onClick={handleSave}
-            disabled={saving || saved}
-          >
-            {saved ? (
-              <>
-                <CheckIcon width={20} height={20} /> Workout Saved
-              </>
-            ) : saving ? (
-              'Saving…'
-            ) : (
-              'Save Workout'
-            )}
-          </button>
-        </div>
+        <WorkoutForm
+          icon={<DumbbellIcon className="page-icon" width={44} height={44} />}
+          title={pd?.title}
+          subtitle={pd?.subtitle}
+          stats={stats}
+          exercises={visibleExercises}
+          values={values}
+          onExerciseChange={handleExerciseChange}
+          onExerciseMetaChange={handleExerciseMetaChange}
+          onRemoveExercise={handleRemoveExercise}
+          onAddExercise={handleAddExercise}
+          exertion={exertion}
+          onExertionChange={setExertion}
+          notes={notes}
+          onNotesChange={setNotes}
+          onSave={handleSave}
+          saving={saving}
+          saveLabel={editSessionId ? 'Update workout' : 'Save Workout'}
+          error={error}
+          footer={
+            !editSessionId && (
+              <Link to="/session/new" className="adhoc-link">
+                Log one-off workout instead
+              </Link>
+            )
+          }
+        />
       </div>
     </>
   );

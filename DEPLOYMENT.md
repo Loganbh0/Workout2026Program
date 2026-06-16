@@ -1,13 +1,13 @@
-# Deploying Program Builder and Flexible Splits
+# Deploying Workout Editing and Ad-Hoc Sessions
 
-This guide covers what to update in **Supabase**, **Render**, and **GitHub** after pulling the program builder, default Today route, and activate start-date changes.
+This guide covers what to update after pulling workout editing, program editing, UI trim, and one-off session features.
 
 ---
 
 ## Order of operations
 
 1. Push code to GitHub
-2. Run migrations in Supabase (`0004` if needed, then `0005`)
+2. Run `0006_adhoc_sessions.sql` in Supabase (and prior migrations if needed)
 3. Wait for Render to redeploy the backend
 4. Deploy the frontend to GitHub Pages
 5. Hard-refresh and verify
@@ -18,21 +18,19 @@ This guide covers what to update in **Supabase**, **Render**, and **GitHub** aft
 
 Open your project at [supabase.com](https://supabase.com) → **SQL Editor**.
 
-### Migration A — Multi-program (if not yet applied)
+Run:
 
-`supabase/migrations/0004_programs.sql`
+`supabase/migrations/0006_adhoc_sessions.sql`
 
-### Migration B — Flexible training days
-
-`supabase/migrations/0005_flexible_program_days.sql`
-
-This relaxes `day_number` limits and adds a unique `(program_id, weekday)` index so custom splits (e.g. Mon/Wed/Fri) work with the day trainer.
+This adds:
+- `session_type` (`program` | `adhoc`) and optional `title` on `workout_sessions`
+- Nullable `day_number` for ad-hoc sessions
+- Constraints so program sessions require a day number
 
 ### Verify
 
 ```sql
-select id, display_name, is_active, start_date, sessions_per_week from programs;
-select program_id, weekday, day_number, title from program_days order by program_id, day_number;
+select session_type, title, day_number, workout_date from workout_sessions order by id desc limit 5;
 ```
 
 ---
@@ -41,22 +39,13 @@ select program_id, weekday, day_number, title from program_days order by program
 
 ### What changes
 
-- `POST /programs` — create custom program with days + exercises
-- `POST /programs/:id/activate` — requires `{ startDate: "YYYY-MM-DD" }`
-- `GET /today` — resolves workout by active program's weekday schedule (not fixed Mon=1)
-- `GET /programs/:id` — includes exercises per day
+- `PUT /sessions/:id` — update logged workouts
+- `POST /sessions` with `sessionType: "adhoc"` — one-off workouts
+- `GET /today` returns `sessionId` + `session` when already logged
+- `PUT /programs/:id` accepts full `days[]` for program editing
+- Stats / `alreadyLogged` count **program** sessions only (adhoc excluded from completion)
 
-| Action | Required? |
-|--------|-----------|
-| Push to GitHub | Yes |
-| New env vars | **No** |
-| Manual redeploy | Only if auto-deploy is off |
-
-### Verify
-
-1. `GET /health` → `{"status":"ok"}`
-2. `POST /programs` with a 3-day split → returns program with 3 days
-3. Activate with start date → Today shows rest on off-days
+Push to GitHub; no new env vars.
 
 ---
 
@@ -64,26 +53,24 @@ select program_id, weekday, day_number, title from program_days order by program
 
 ### What changes
 
-- App opens to **Today** (`/`)
-- **Home** at `/home` with **+** to create programs
-- Program detail: accordion days, activate → start-date scroll wheel
-- Create program wizard at `/programs/new`
+- Today: add/remove exercises before save; **Edit workout** after save
+- **Log one-off workout** link → `/session/new`
+- History session detail: **Edit workout**
+- Program detail: **Edit plan** → `/programs/:id/edit`
+- Removed streak/check-in/completion row; kept week progress bar only
 
-Secrets unchanged: `VITE_API_BASE_URL`, `VITE_API_KEY`
-
-Hard-refresh after deploy: `Ctrl+Shift+R`
+Hard-refresh after deploy.
 
 ---
 
 ## Quick smoke checklist
 
-- [ ] App opens to Today tab by default
-- [ ] Home **+** opens create program wizard
-- [ ] Create Mon/Wed/Fri program with exercises → saves and opens detail
-- [ ] Program detail day rows expand to show exercise table
-- [ ] ACTIVATE opens date wheel; confirm sets start date
-- [ ] On 3-day split, Tuesday shows rest/day-complete; Mon/Wed show workout
-- [ ] History/Progress scope toggle still works
+- [ ] Today workout form: add/remove exercises, save
+- [ ] After save: Edit workout → change sets → update
+- [ ] Log one-off workout → appears in History, does not bump `X/40`
+- [ ] History → session → Edit workout
+- [ ] Program detail → Edit plan → change days/exercises → save
+- [ ] Progress bar only (no streak/check-in row) on Today and day-complete
 
 ---
 
@@ -91,8 +78,6 @@ Hard-refresh after deploy: `Ctrl+Shift+R`
 
 | File | Purpose |
 |------|---------|
-| `0001_init.sql` | Base schema |
-| `0002_seed_program.sql` | Program exercises |
-| `0003_per_set_logging.sql` | Per-set logging |
-| `0004_programs.sql` | Multi-program layer |
-| `0005_flexible_program_days.sql` | Custom splits (**this release**) |
+| `0004_programs.sql` | Multi-program |
+| `0005_flexible_program_days.sql` | Custom splits |
+| `0006_adhoc_sessions.sql` | One-off sessions (**this release**) |

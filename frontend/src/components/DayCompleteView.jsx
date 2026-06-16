@@ -1,6 +1,8 @@
+import { Link } from 'react-router-dom';
 import Breathing from './Breathing.jsx';
 import TopNav from './TopNav.jsx';
-import { ProgressCard, StatsCard } from './Cards.jsx';
+import { ProgressCard } from './Cards.jsx';
+import { formatStartLabel } from '../workoutHelpers.js';
 
 const WEEKDAY_TITLES = {
   saturday: 'Saturday',
@@ -12,12 +14,7 @@ const WEEKDAY_TITLES = {
   friday: 'Friday',
 };
 
-function formatStartLabel(startDate) {
-  const d = new Date(`${startDate}T12:00:00`);
-  return `Starts ${d.toLocaleDateString(undefined, { month: 'long', day: 'numeric' })}`;
-}
-
-export default function DayCompleteView({ mode, weekday, stats }) {
+export default function DayCompleteView({ mode, weekday, stats, onEdit, showAdhocLink }) {
   const isRest = mode === 'rest';
   const title = isRest ? 'Rest Day' : 'Workout Complete';
   const weekdayLabel = WEEKDAY_TITLES[weekday] || 'Today';
@@ -54,15 +51,19 @@ export default function DayCompleteView({ mode, weekday, stats }) {
           />
         </div>
 
-        <div className="section">
-          <StatsCard
-            stats={[
-              { label: 'Streak', value: stats?.streak ?? 0 },
-              { label: 'Check-Ins', value: checkIns },
-              { label: 'Completion', value: `${completion}%` },
-            ]}
-          />
-        </div>
+        {!isRest && onEdit && (
+          <div className="section">
+            <button type="button" className="btn btn--secondary" onClick={onEdit}>
+              Edit workout
+            </button>
+          </div>
+        )}
+
+        {showAdhocLink && (
+          <Link to="/session/new" className="adhoc-link">
+            Log one-off workout
+          </Link>
+        )}
       </div>
     </>
   );

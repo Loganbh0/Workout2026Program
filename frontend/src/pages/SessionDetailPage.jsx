@@ -68,8 +68,20 @@ export default function SessionDetailPage() {
         {!session && !error && <div className="spinner" />}
         {session && (
           <>
-            <h1 className="heading" style={{ marginTop: 12 }}>{session.title || `Day ${session.day_number}`}</h1>
+            <h1 className="heading" style={{ marginTop: 12 }}>
+              {session.display_title || session.title || `Day ${session.day_number}`}
+            </h1>
             <p className="subtitle">{formatDate(session.workout_date)}</p>
+
+            <div className="section">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => navigate(`/history/${id}/edit`)}
+              >
+                Edit workout
+              </button>
+            </div>
 
             <div className="section">
               <Card className="stats-card">

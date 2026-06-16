@@ -136,6 +136,16 @@ export default function ProgramDetailPage() {
             </div>
 
             <div className="section">
+              <button
+                type="button"
+                className="btn btn--secondary"
+                onClick={() => navigate(`/programs/${id}/edit`)}
+              >
+                Edit plan
+              </button>
+            </div>
+
+            <div className="section">
               <p className="section-label">Weekly plan</p>
               {program.days.map((day) => (
                 <ProgramDayAccordion key={day.id} day={day} />

@@ -46,7 +46,9 @@ export default function HistoryPage() {
               {sessions.map((s) => (
                 <Link key={s.id} to={`/history/${s.id}`} className="history-row">
                   <div>
-                    <div className="history-row__title">{s.title || `Day ${s.day_number}`}</div>
+                    <div className="history-row__title">
+                      {s.display_title || s.title || `Day ${s.day_number}`}
+                    </div>
                     <div className="history-row__meta">
                       {formatDate(s.workout_date)} · {s.exercise_count} exercises
                       {s.exertion ? ` · Effort ${s.exertion}/5` : ''}

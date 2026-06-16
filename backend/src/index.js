@@ -12,6 +12,7 @@ import {
   listSessions,
   getSession,
   createSession,
+  updateSession,
   getExerciseProgress,
   listLoggedExercises,
   getStats,
@@ -20,6 +21,7 @@ import {
   createProgram,
   updateProgram,
   activateProgram,
+  updateSession,
   getActiveProgram,
 } from './queries.js';
 
@@ -69,8 +71,7 @@ api.get('/programs/:id', asyncHandler(async (req, res) => {
 }));
 
 api.put('/programs/:id', asyncHandler(async (req, res) => {
-  const { displayName } = req.body || {};
-  const program = await updateProgram(Number(req.params.id), { displayName });
+  const program = await updateProgram(Number(req.params.id), req.body || {});
   if (!program) return res.status(404).json({ error: 'Program not found' });
   res.json(program);
 }));
@@ -120,12 +121,33 @@ api.get('/sessions/:id', asyncHandler(async (req, res) => {
 }));
 
 api.post('/sessions', asyncHandler(async (req, res) => {
-  const { workoutDate, dayNumber, exertion, sessionNotes, logs } = req.body || {};
-  if (!workoutDate || !dayNumber) {
-    return res.status(400).json({ error: 'workoutDate and dayNumber are required' });
+  const { workoutDate, dayNumber, exertion, sessionNotes, logs, sessionType, title } = req.body || {};
+  if (!workoutDate) {
+    return res.status(400).json({ error: 'workoutDate is required' });
+  }
+  if (sessionType === 'adhoc') {
+    const session = await createSession({
+      workoutDate,
+      exertion,
+      sessionNotes,
+      logs,
+      sessionType: 'adhoc',
+      title,
+    });
+    return res.status(201).json(session);
+  }
+  if (!dayNumber) {
+    return res.status(400).json({ error: 'dayNumber is required for program sessions' });
   }
   const session = await createSession({ workoutDate, dayNumber, exertion, sessionNotes, logs });
   res.status(201).json(session);
+}));
+
+api.put('/sessions/:id', asyncHandler(async (req, res) => {
+  const { exertion, sessionNotes, logs, title } = req.body || {};
+  const session = await updateSession(Number(req.params.id), { exertion, sessionNotes, logs, title });
+  if (!session) return res.status(404).json({ error: 'Session not found' });
+  res.json(session);
 }));
 
 api.get('/exercises', asyncHandler(async (req, res) => {
