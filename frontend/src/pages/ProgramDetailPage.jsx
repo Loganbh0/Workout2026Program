@@ -14,7 +14,9 @@ export default function ProgramDetailPage() {
   const [renaming, setRenaming] = useState(false);
   const [nameDraft, setNameDraft] = useState('');
   const [showStartDate, setShowStartDate] = useState(false);
+  const [startDateMode, setStartDateMode] = useState('activate');
   const [activating, setActivating] = useState(false);
+  const [deactivating, setDeactivating] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -56,7 +58,12 @@ export default function ProgramDetailPage() {
     }
   }
 
-  async function handleActivateConfirm(startDate) {
+  function openStartDateModal(mode) {
+    setStartDateMode(mode);
+    setShowStartDate(true);
+  }
+
+  async function handleStartDateConfirm(startDate) {
     setActivating(true);
     setError(null);
     try {
@@ -70,6 +77,32 @@ export default function ProgramDetailPage() {
     }
   }
 
+  async function handleResume() {
+    setActivating(true);
+    setError(null);
+    try {
+      const updated = await api.activateProgram(id, { resume: true });
+      setProgram(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setActivating(false);
+    }
+  }
+
+  async function handleDeactivate() {
+    setDeactivating(true);
+    setError(null);
+    try {
+      const updated = await api.deactivateProgram(id);
+      setProgram(updated);
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeactivating(false);
+    }
+  }
+
   const pencil = (
     <button
       type="button"
@@ -80,6 +113,9 @@ export default function ProgramDetailPage() {
       <PencilIcon width={20} height={20} />
     </button>
   );
+
+  const wasStarted = Boolean(program?.startDate);
+  const isRestart = startDateMode === 'restart';
 
   return (
     <>
@@ -124,15 +160,50 @@ export default function ProgramDetailPage() {
               {program.startDate ? ` · Starts ${program.startDate}` : ''}
             </p>
 
-            <div className="section">
-              <button
-                type="button"
-                className={`btn${program.isActive ? ' btn--muted' : ''}`}
-                disabled={program.isActive || activating}
-                onClick={() => setShowStartDate(true)}
-              >
-                {program.isActive ? 'ACTIVE' : 'ACTIVATE'}
-              </button>
+            <div className="section" style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              {program.isActive ? (
+                <>
+                  <button type="button" className="btn btn--muted" disabled>
+                    ACTIVE
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={handleDeactivate}
+                    disabled={deactivating}
+                  >
+                    {deactivating ? 'Deactivating…' : 'Deactivate'}
+                  </button>
+                </>
+              ) : wasStarted ? (
+                <>
+                  <button
+                    type="button"
+                    className="btn"
+                    onClick={handleResume}
+                    disabled={activating}
+                  >
+                    {activating ? 'Resuming…' : 'Resume'}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn--secondary"
+                    onClick={() => openStartDateModal('restart')}
+                    disabled={activating}
+                  >
+                    Restart
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => openStartDateModal('activate')}
+                  disabled={activating}
+                >
+                  Activate
+                </button>
+              )}
             </div>
 
             <div className="section">
@@ -158,8 +229,15 @@ export default function ProgramDetailPage() {
       <StartDateModal
         open={showStartDate && program && !program.isActive}
         onClose={() => setShowStartDate(false)}
-        onConfirm={handleActivateConfirm}
+        onConfirm={handleStartDateConfirm}
         loading={activating}
+        title={isRestart ? 'Restart program' : 'Start date'}
+        subtitle={
+          isRestart
+            ? 'Pick a new start date. Your logged workouts stay in history.'
+            : 'When should this program begin?'
+        }
+        confirmLabel={isRestart ? 'Restart' : 'Activate'}
       />
     </>
   );

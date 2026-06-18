@@ -2,7 +2,15 @@ import { useCallback, useState } from 'react';
 import StartDateWheel from './StartDateWheel.jsx';
 import { localIsoDate } from '../api.js';
 
-export default function StartDateModal({ open, onClose, onConfirm, loading }) {
+export default function StartDateModal({
+  open,
+  onClose,
+  onConfirm,
+  loading,
+  title = 'Start date',
+  subtitle = 'When should this program begin?',
+  confirmLabel = 'Activate',
+}) {
   const [startDate, setStartDate] = useState(localIsoDate());
 
   const handleChange = useCallback((iso) => {
@@ -14,8 +22,8 @@ export default function StartDateModal({ open, onClose, onConfirm, loading }) {
   return (
     <div className="date-wheel-modal" role="dialog" aria-modal="true" aria-labelledby="start-date-title">
       <div className="date-wheel-modal__sheet">
-        <h2 id="start-date-title" className="date-wheel-modal__title">Start date</h2>
-        <p className="date-wheel-modal__subtitle">When should this program begin?</p>
+        <h2 id="start-date-title" className="date-wheel-modal__title">{title}</h2>
+        <p className="date-wheel-modal__subtitle">{subtitle}</p>
         <StartDateWheel value={startDate} onChange={handleChange} />
         <div className="date-wheel-modal__actions">
           <button type="button" className="btn btn--secondary" onClick={onClose} disabled={loading}>
@@ -27,7 +35,7 @@ export default function StartDateModal({ open, onClose, onConfirm, loading }) {
             onClick={() => onConfirm(startDate)}
             disabled={loading}
           >
-            {loading ? 'Activating…' : 'Activate'}
+            {loading ? 'Saving…' : confirmLabel}
           </button>
         </div>
       </div>

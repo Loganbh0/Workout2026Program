@@ -68,6 +68,16 @@
   border-radius: 6px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid transparent;
+  padding: 0;
+  font-family: inherit;
+}
+
+button.workout-calendar__cell {
+  cursor: pointer;
+}
+
+button.workout-calendar__cell:hover {
+  border-color: rgba(255, 255, 255, 0.35);
 }
 
 .workout-calendar__cell--empty {
@@ -78,6 +88,11 @@
   color: var(--text-primary);
   border-color: rgba(255, 255, 255, 0.85);
   background: rgba(255, 255, 255, 0.06);
+}
+
+.workout-calendar__cell--selected {
+  box-shadow: 0 0 0 2px #ffffff;
+  border-color: #ffffff;
 }
 
 .workout-calendar__cell--today:not(.workout-calendar__cell--workout) {

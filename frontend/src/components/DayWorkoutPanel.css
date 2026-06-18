@@ -1,0 +1,9 @@
+.day-workout-panel {
+  margin-bottom: 20px;
+}
+
+.day-workout-panel .session-log + .session-log {
+  margin-top: 20px;
+  padding-top: 20px;
+  border-top: 1px solid var(--hairline);
+}

@@ -42,8 +42,10 @@ export const api = {
     request(`/sessions/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
   updateProgram: (id, body) =>
     request(`/programs/${id}`, { method: 'PUT', body: JSON.stringify(body) }),
-  activateProgram: (id, body) =>
+  activateProgram: (id, body = {}) =>
     request(`/programs/${id}/activate`, { method: 'POST', body: JSON.stringify(body) }),
+  deactivateProgram: (id) =>
+    request(`/programs/${id}/deactivate`, { method: 'POST', body: JSON.stringify({}) }),
   programDay: (dayNumber) => request(`/program/day/${dayNumber}`),
   prefillDay: (dayNumber) => request(`/prefill/day/${dayNumber}`),
   sessions: (params = {}) => {
@@ -59,6 +61,8 @@ export const api = {
     request(`/progress/exercise/${encodeURIComponent(name)}?scope=${scope}`),
   activityCalendar: (year, month, scope = 'active') =>
     request(`/activity/calendar?year=${year}&month=${month}&scope=${scope}`),
+  activityDay: (date, scope = 'active') =>
+    request(`/activity/day/${date}?scope=${scope}`),
 };
 
 export function localIsoDate(d = new Date()) {

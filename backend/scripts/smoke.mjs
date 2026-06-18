@@ -326,6 +326,30 @@ const run = async () => {
   ok(editedProgram.displayName === 'Smoke 3-Day Split Updated', 'Full program update works');
   ok(editedProgram.days[0].title.endsWith('v2'), 'Program day title updated');
 
+  const activeDetail = await get(`/programs/${active.id}`);
+  const originalStart = activeDetail.startDate || '2026-06-08';
+
+  const deactivated = await post(`/programs/${active.id}/deactivate`, {});
+  ok(deactivated.isActive === false, 'Deactivate sets isActive false');
+
+  const noProgramToday = await get('/today');
+  ok(noProgramToday.mode === 'no_program', 'Today returns no_program when nothing active');
+
+  const resumed = await post(`/programs/${active.id}/activate`, { resume: true });
+  ok(resumed.isActive === true, 'Resume reactivates program');
+  ok(resumed.startDate === originalStart, 'Resume keeps original startDate');
+
+  await post(`/programs/${active.id}/deactivate`, {});
+
+  const restarted = await post(`/programs/${active.id}/activate`, { startDate: '2026-07-15' });
+  ok(restarted.isActive === true, 'Restart activates program');
+  ok(restarted.startDate === '2026-07-15', 'Restart updates startDate');
+
+  await post(`/programs/${active.id}/activate`, { startDate: originalStart });
+
+  const dayActivity = await get(`/activity/day/${nextWeekday(1)}?scope=active`);
+  ok(Array.isArray(dayActivity.sessions), 'Activity day returns sessions array');
+
   console.log(`\n${failures === 0 ? 'ALL SMOKE TESTS PASSED' : `${failures} FAILURE(S)`}`);
   process.exit(failures === 0 ? 0 : 1);
 };

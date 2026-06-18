@@ -28,7 +28,7 @@ function buildMonthGrid(year, month) {
   return cells;
 }
 
-export default function WorkoutCalendar({ scope }) {
+export default function WorkoutCalendar({ scope, selectedDate, onSelectDate }) {
   const now = new Date();
   const [viewYear, setViewYear] = useState(now.getFullYear());
   const [viewMonth, setViewMonth] = useState(now.getMonth() + 1);
@@ -67,6 +67,12 @@ export default function WorkoutCalendar({ scope }) {
     const d = new Date(viewYear, viewMonth - 1 + delta, 1);
     setViewYear(d.getFullYear());
     setViewMonth(d.getMonth() + 1);
+    onSelectDate?.(null);
+  }
+
+  function handleDayClick(iso, hasWorkout) {
+    if (!hasWorkout) return;
+    onSelectDate?.(selectedDate === iso ? null : iso);
   }
 
   return (
@@ -108,17 +114,33 @@ export default function WorkoutCalendar({ scope }) {
           }
           const hasWorkout = workoutDates?.has(cell.iso);
           const isToday = cell.iso === todayIso;
+          const isSelected = selectedDate === cell.iso;
+          const className = [
+            'workout-calendar__cell',
+            hasWorkout ? 'workout-calendar__cell--workout' : '',
+            isToday ? 'workout-calendar__cell--today' : '',
+            isSelected ? 'workout-calendar__cell--selected' : '',
+          ]
+            .filter(Boolean)
+            .join(' ');
+
+          if (hasWorkout) {
+            return (
+              <button
+                key={cell.key}
+                type="button"
+                className={className}
+                onClick={() => handleDayClick(cell.iso, hasWorkout)}
+                aria-pressed={isSelected}
+                aria-label={`${cell.day}, workout logged`}
+              >
+                {cell.day}
+              </button>
+            );
+          }
+
           return (
-            <span
-              key={cell.key}
-              className={[
-                'workout-calendar__cell',
-                hasWorkout ? 'workout-calendar__cell--workout' : '',
-                isToday ? 'workout-calendar__cell--today' : '',
-              ]
-                .filter(Boolean)
-                .join(' ')}
-            >
+            <span key={cell.key} className={className} aria-hidden>
               {cell.day}
             </span>
           );

@@ -152,8 +152,9 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | POST | `/programs` | Create program with days + exercises |
 | GET | `/programs/:id` | Program detail + weekly days (includes `exercises[]` per day) |
 | PUT | `/programs/:id` | Rename (`displayName`) or full update with `days[]` + `durationWeeks` |
-| POST | `/programs/:id/activate` | Set active program; body `{ startDate: "YYYY-MM-DD" }` required |
-| GET | `/today?date=YYYY-MM-DD` | Resolve day; includes `alreadyLogged`, `sessionId`, `session` when logged |
+| POST | `/programs/:id/activate` | Activate or resume; body `{ startDate }` or `{ resume: true }` |
+| POST | `/programs/:id/deactivate` | Pause the active program |
+| GET | `/today?date=YYYY-MM-DD` | Resolve day; `mode: no_program` when nothing active |
 | GET | `/stats?scope=active\|all` | Streak, check-ins, completion %, current week |
 | GET | `/settings` / PUT `/settings` | Global app settings |
 | GET | `/program/day/:n` | Exercises + targets for a day (active program) |
@@ -165,3 +166,4 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | GET | `/exercises?scope=active\|all` | Logged exercises (`{ name, loggingMode }[]`; excludes completion-only) |
 | GET | `/progress/exercise/:name?scope=active\|all` | Time series for charts (weight, reps, duration, distance) |
 | GET | `/activity/calendar?year=2026&month=6&scope=active\|all` | Distinct workout dates in a month |
+| GET | `/activity/day/:date?scope=active\|all` | Full session payloads for a date |

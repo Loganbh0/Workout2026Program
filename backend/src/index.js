@@ -21,8 +21,10 @@ import {
   createProgram,
   updateProgram,
   activateProgram,
+  deactivateProgram,
   getActiveProgram,
   getActivityCalendar,
+  getSessionsForDate,
 } from './queries.js';
 
 const app = express();
@@ -77,8 +79,13 @@ api.put('/programs/:id', asyncHandler(async (req, res) => {
 }));
 
 api.post('/programs/:id/activate', asyncHandler(async (req, res) => {
-  const { startDate } = req.body || {};
-  const program = await activateProgram(Number(req.params.id), { startDate });
+  const { startDate, resume } = req.body || {};
+  const program = await activateProgram(Number(req.params.id), { startDate, resume: Boolean(resume) });
+  res.json(program);
+}));
+
+api.post('/programs/:id/deactivate', asyncHandler(async (req, res) => {
+  const program = await deactivateProgram(Number(req.params.id));
   res.json(program);
 }));
 
@@ -165,6 +172,10 @@ api.get('/activity/calendar', asyncHandler(async (req, res) => {
     month: month ? Number(month) : undefined,
     scope,
   }));
+}));
+
+api.get('/activity/day/:date', asyncHandler(async (req, res) => {
+  res.json(await getSessionsForDate(req.params.date, req.query.scope));
 }));
 
 app.use('/api/v1', api);

@@ -169,6 +169,25 @@ export default function TodayPage() {
     );
   }
 
+  if (today?.mode === 'no_program') {
+    return (
+      <>
+        <TopNav title="Today" />
+        <div className="screen">
+          <h1 className="heading" style={{ marginTop: 12 }}>No active program</h1>
+          <p className="subtitle">
+            Choose a program from Home and activate or resume it to see today&apos;s workout.
+          </p>
+          <div className="section">
+            <Link to="/home" className="btn">
+              Go to Home
+            </Link>
+          </div>
+        </div>
+      </>
+    );
+  }
+
   const showDayComplete = today?.mode === 'rest' || today?.alreadyLogged;
 
   if (showDayComplete) {

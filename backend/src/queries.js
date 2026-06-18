@@ -233,7 +233,37 @@ async function insertProgramDays(client, programId, days) {
   }
 }
 
-export async function activateProgram(id, { startDate } = {}) {
+export async function activateProgram(id, { startDate, resume } = {}) {
+  if (resume) {
+    await withTransaction(async (client) => {
+      const { rows: programRows } = await client.query(
+        'select start_date from programs where id = $1',
+        [id]
+      );
+      if (!programRows[0]) {
+        const err = new Error('Program not found');
+        err.status = 404;
+        throw err;
+      }
+      if (!programRows[0].start_date) {
+        const err = new Error('Cannot resume a program that has never been started');
+        err.status = 400;
+        throw err;
+      }
+      await client.query('update programs set is_active = false where is_active = true');
+      const { rows } = await client.query(
+        'update programs set is_active = true where id = $1 returning id',
+        [id]
+      );
+      if (!rows[0]) {
+        const err = new Error('Program not found');
+        err.status = 404;
+        throw err;
+      }
+    });
+    return getProgram(id);
+  }
+
   if (!startDate || !/^\d{4}-\d{2}-\d{2}$/.test(startDate)) {
     const err = new Error('startDate is required (YYYY-MM-DD)');
     err.status = 400;
@@ -252,6 +282,24 @@ export async function activateProgram(id, { startDate } = {}) {
       throw err;
     }
   });
+  return getProgram(id);
+}
+
+export async function deactivateProgram(id) {
+  const { rows } = await query(
+    'select id from programs where id = $1',
+    [id]
+  );
+  if (!rows[0]) {
+    const err = new Error('Program not found');
+    err.status = 404;
+    throw err;
+  }
+
+  await query(
+    'update programs set is_active = false where id = $1 and is_active = true',
+    [id]
+  );
   return getProgram(id);
 }
 
@@ -451,10 +499,23 @@ function mapSessionSummary(session) {
 }
 
 export async function resolveToday(isoDate) {
-  const program = await requireActiveProgram();
   const date = isoDate ? new Date(`${isoDate}T12:00:00`) : new Date();
   const dateIso = toIso(date);
   const weekday = WEEKDAYS[date.getDay()];
+
+  const program = await getActiveProgram();
+  if (!program) {
+    return {
+      mode: 'no_program',
+      weekday,
+      date: dateIso,
+      alreadyLogged: false,
+      sessionId: null,
+      session: null,
+      program: null,
+    };
+  }
+
   const alreadyLogged = await isAlreadyLogged(program.id, dateIso);
   const session = alreadyLogged ? await getSessionForDate(program.id, dateIso) : null;
 
@@ -974,4 +1035,21 @@ export async function getActivityCalendar({ year, month, scope = 'active' } = {}
     month: m,
     dates: rows.map((r) => toIso(r.workout_date)),
   };
+}
+
+export async function getSessionsForDate(date, scope = 'active') {
+  if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+    const err = new Error('date is required (YYYY-MM-DD)');
+    err.status = 400;
+    throw err;
+  }
+
+  const summaries = await listSessions({ from: date, to: date, scope, limit: 50 });
+  const sessions = [];
+  for (const row of summaries) {
+    const full = await getSession(row.id);
+    if (full) sessions.push(full);
+  }
+
+  return { date, sessions };
 }
