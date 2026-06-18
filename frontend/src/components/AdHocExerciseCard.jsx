@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { CheckIcon, ChevronDownIcon } from './Icons.jsx';
+import { CheckIcon } from './Icons.jsx';
 import SetRow from './SetRow.jsx';
 import { parseSetCount, emptySets, resolveLoggingMode } from '../setCount.js';
 import './ExerciseCard.css';
@@ -95,14 +95,26 @@ export default function AdHocExerciseCard({
             />
           )}
         </div>
-        <button
-          type="button"
-          className={`exercise__check${value.completed ? ' exercise__check--on' : ''}`}
-          onClick={() => update({ completed: !value.completed })}
-          aria-label="Mark complete"
-        >
-          {value.completed && <CheckIcon width={16} height={16} />}
-        </button>
+        <div className="adhoc-exercise__actions">
+          {onRemove && (
+            <button
+              type="button"
+              className="adhoc-exercise__delete"
+              onClick={onRemove}
+              aria-label="Delete exercise"
+            >
+              Delete
+            </button>
+          )}
+          <button
+            type="button"
+            className={`exercise__check${value.completed ? ' exercise__check--on' : ''}`}
+            onClick={() => update({ completed: !value.completed })}
+            aria-label="Mark complete"
+          >
+            {value.completed && <CheckIcon width={16} height={16} />}
+          </button>
+        </div>
       </div>
 
       {showSets && (
@@ -121,11 +133,6 @@ export default function AdHocExerciseCard({
         </div>
       )}
 
-      {onRemove && (
-        <button type="button" className="adhoc-exercise__remove" onClick={onRemove}>
-          Remove exercise
-        </button>
-      )}
     </div>
   );
 }

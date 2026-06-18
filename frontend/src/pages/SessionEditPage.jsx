@@ -83,7 +83,6 @@ export default function SessionEditPage() {
   }
 
   function handleRemoveExercise(exId) {
-    if (exercises.length <= 1) return;
     setExercises((prev) => prev.filter((e) => e.id !== exId));
     setValues((prev) => {
       const next = { ...prev };
@@ -94,6 +93,10 @@ export default function SessionEditPage() {
 
   async function handleSave() {
     const rows = exercises.map((ex) => ({ exercise: ex, value: values[ex.id] || {} }));
+    if (!rows.length) {
+      setError('Add at least one exercise.');
+      return;
+    }
     for (const row of rows) {
       if (!row.exercise.name?.trim()) {
         setError('Every exercise needs a name.');
@@ -166,6 +169,8 @@ export default function SessionEditPage() {
           saving={saving}
           saveLabel="Update workout"
           error={error}
+          showLoggingFields={exercises.length > 0}
+          emptyAddCard
         />
       </div>
     </>

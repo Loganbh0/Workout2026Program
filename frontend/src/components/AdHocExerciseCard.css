@@ -6,6 +6,29 @@
   min-width: 0;
 }
 
+.adhoc-exercise__actions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.adhoc-exercise__delete {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-tertiary);
+  background: none;
+  border: none;
+  padding: 2px 0;
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.adhoc-exercise__delete:active {
+  color: var(--text-secondary);
+}
+
 .adhoc-exercise__sets-input {
   max-width: 88px;
 }

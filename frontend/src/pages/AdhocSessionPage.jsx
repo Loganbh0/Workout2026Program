@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api, localIsoDate } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
@@ -11,19 +11,19 @@ import {
 } from '../workoutHelpers.js';
 import '../components/AdHocExerciseCard.css';
 
-const firstId = 'adhoc-1';
-const firstExercise = createAdHocExercise(firstId);
+let nextTempId = 1;
 
 export default function AdhocSessionPage() {
   const navigate = useNavigate();
   const [title, setTitle] = useState('');
-  const [exercises, setExercises] = useState([firstExercise]);
-  const [values, setValues] = useState({ [firstId]: initExerciseValue(firstExercise) });
+  const [exercises, setExercises] = useState([]);
+  const [values, setValues] = useState({});
   const [exertion, setExertion] = useState(null);
   const [notes, setNotes] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
-  const nextId = useMemo(() => ({ n: 2 }), []);
+
+  const hasExercises = exercises.length > 0;
 
   function handleExerciseChange(id, value) {
     setValues((prev) => ({ ...prev, [id]: value }));
@@ -46,14 +46,13 @@ export default function AdhocSessionPage() {
   }
 
   function handleAddExercise() {
-    const id = `adhoc-${nextId.n++}`;
+    const id = `adhoc-${nextTempId++}`;
     const ex = createAdHocExercise(id);
     setExercises((prev) => [...prev, ex]);
     setValues((prev) => ({ ...prev, [id]: initExerciseValue(ex) }));
   }
 
   function handleRemoveExercise(id) {
-    if (exercises.length <= 1) return;
     setExercises((prev) => prev.filter((e) => e.id !== id));
     setValues((prev) => {
       const next = { ...prev };
@@ -63,11 +62,11 @@ export default function AdhocSessionPage() {
   }
 
   async function handleSave() {
-    if (!title.trim()) {
-      setError('Workout title is required.');
+    const rows = exercises.map((ex) => ({ exercise: ex, value: values[ex.id] || {} }));
+    if (!rows.length) {
+      setError('Add at least one exercise.');
       return;
     }
-    const rows = exercises.map((ex) => ({ exercise: ex, value: values[ex.id] || {} }));
     for (const row of rows) {
       if (!row.exercise.name?.trim()) {
         setError('Every exercise needs a name.');
@@ -81,7 +80,7 @@ export default function AdhocSessionPage() {
       await api.createSession({
         workoutDate: localIsoDate(),
         sessionType: 'adhoc',
-        title: title.trim(),
+        title: title.trim() || undefined,
         exertion,
         sessionNotes: notes || null,
         logs: buildLogsFromRows(rows),
@@ -110,17 +109,19 @@ export default function AdhocSessionPage() {
       <TopNav title="One-off Workout" left={back} />
       <div className="screen">
         <h1 className="heading" style={{ marginTop: 12 }}>Log one-off workout</h1>
-        <p className="subtitle">Won't count toward your program schedule.</p>
+        <p className="subtitle">Won&apos;t count toward your program schedule.</p>
 
-        <div className="section">
-          <p className="section-label">Workout title</p>
-          <input
-            className="select"
-            value={title}
-            onChange={(e) => setTitle(e.target.value)}
-            placeholder="e.g. Hotel gym session"
-          />
-        </div>
+        {hasExercises && (
+          <div className="section">
+            <p className="section-label">Workout title (optional)</p>
+            <input
+              className="select"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="e.g. Hotel gym session"
+            />
+          </div>
+        )}
 
         <WorkoutForm
           showProgress={false}
@@ -138,6 +139,8 @@ export default function AdhocSessionPage() {
           saving={saving}
           saveLabel="Save workout"
           error={error}
+          showLoggingFields={hasExercises}
+          emptyAddCard
         />
       </div>
     </>

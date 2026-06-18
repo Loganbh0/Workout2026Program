@@ -240,9 +240,6 @@ export default function TodayPage() {
         <TopNav title="Today" right={<span className="dim" style={{ fontSize: 13 }}>{todayLabel()}</span>} />
         <div className="screen">
           <h1 className="heading" style={{ marginTop: 12 }}>Ready when you are</h1>
-          <p className="subtitle">
-            No plan needed — log what you did today and keep moving forward.
-          </p>
 
           <WorkoutForm
             showProgress={false}
