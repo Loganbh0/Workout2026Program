@@ -3,8 +3,20 @@ import { query, withTransaction } from './db.js';
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 const WEEKDAY_ORDER = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday: 5 };
 const VALID_WEEKDAYS = Object.keys(WEEKDAY_ORDER);
-const VALID_LOGGING_MODES = ['weighted_sets', 'bodyweight_sets', 'completion_only'];
-const TRACKABLE_MODES = ['weighted_sets', 'bodyweight_sets', 'variant'];
+const VALID_LOGGING_MODES = [
+  'weighted_sets',
+  'bodyweight_sets',
+  'bodyweight_time_sets',
+  'bodyweight_distance_sets',
+  'completion_only',
+];
+const TRACKABLE_MODES = [
+  'weighted_sets',
+  'bodyweight_sets',
+  'bodyweight_time_sets',
+  'bodyweight_distance_sets',
+  'variant',
+];
 
 const PROGRAM_EXERCISE_COLS = `id, sort_order, name, block, target_sets, target_reps,
             tracks_weight, is_priority, notes_hint, logging_mode, variant_options`;
@@ -476,7 +488,8 @@ export async function resolveToday(isoDate) {
 async function fetchSetsForLogIds(logIds) {
   if (!logIds.length) return new Map();
   const { rows } = await query(
-    `select id, exercise_log_id, set_number, weight_lbs, reps, assisted_band
+    `select id, exercise_log_id, set_number, weight_lbs, reps, assisted_band,
+            duration_seconds, distance_yd
        from exercise_set_logs
       where exercise_log_id = any($1::bigint[])
       order by set_number`,
@@ -496,6 +509,8 @@ function mapSets(rows) {
     weightLbs: s.weight_lbs != null ? Number(s.weight_lbs) : null,
     reps: s.reps != null ? Number(s.reps) : null,
     assistedBand: Boolean(s.assisted_band),
+    durationSeconds: s.duration_seconds != null ? Number(s.duration_seconds) : null,
+    distanceYd: s.distance_yd != null ? Number(s.distance_yd) : null,
   }));
 }
 
@@ -611,14 +626,18 @@ async function insertSessionLogs(client, sessionId, logs) {
 
     for (const set of log.sets || []) {
       await client.query(
-        `insert into exercise_set_logs (exercise_log_id, set_number, weight_lbs, reps, assisted_band)
-         values ($1, $2, $3, $4, $5)`,
+        `insert into exercise_set_logs (
+           exercise_log_id, set_number, weight_lbs, reps, assisted_band,
+           duration_seconds, distance_yd
+         ) values ($1, $2, $3, $4, $5, $6, $7)`,
         [
           logId,
           set.setNumber,
           set.weightLbs ?? null,
           set.reps ?? null,
           set.assistedBand ?? false,
+          set.durationSeconds ?? null,
+          set.distanceYd ?? null,
         ]
       );
     }
@@ -709,7 +728,9 @@ async function getExerciseLoggingMode(name, programId) {
 
   const inferParams = [name];
   let inferSql = `select bool_or(esl.weight_lbs is not null) as has_weight,
-                         bool_or(esl.reps is not null) as has_reps
+                         bool_or(esl.reps is not null) as has_reps,
+                         bool_or(esl.duration_seconds is not null) as has_time,
+                         bool_or(esl.distance_yd is not null) as has_distance
                     from exercise_logs el
                     join workout_sessions ws on ws.id = el.session_id
                     left join exercise_set_logs esl on esl.exercise_log_id = el.id
@@ -723,6 +744,8 @@ async function getExerciseLoggingMode(name, programId) {
   if (!inferRows[0]) return null;
   if (inferRows[0].has_weight) return 'weighted_sets';
   if (inferRows[0].has_reps) return 'bodyweight_sets';
+  if (inferRows[0].has_time) return 'bodyweight_time_sets';
+  if (inferRows[0].has_distance) return 'bodyweight_distance_sets';
   return 'completion_only';
 }
 
@@ -742,6 +765,8 @@ export async function getExerciseProgress(name, scope = 'active') {
     `select ws.workout_date,
             max(esl.weight_lbs) as weight_lbs,
             max(esl.reps) as reps,
+            max(esl.duration_seconds) as duration_seconds,
+            max(esl.distance_yd) as distance_yd,
             ws.exertion,
             bool_or(esl.assisted_band) as assisted_band
        from exercise_logs el
@@ -772,6 +797,8 @@ export async function listLoggedExercises(scope = 'active') {
               case
                 when bool_or(esl.weight_lbs is not null) then 'weighted_sets'
                 when bool_or(esl.reps is not null) then 'bodyweight_sets'
+                when bool_or(esl.duration_seconds is not null) then 'bodyweight_time_sets'
+                when bool_or(esl.distance_yd is not null) then 'bodyweight_distance_sets'
                 else 'completion_only'
               end
             ) as logging_mode
@@ -790,6 +817,8 @@ export async function listLoggedExercises(scope = 'active') {
         case
           when bool_or(esl.weight_lbs is not null) then 'weighted_sets'
           when bool_or(esl.reps is not null) then 'bodyweight_sets'
+          when bool_or(esl.duration_seconds is not null) then 'bodyweight_time_sets'
+          when bool_or(esl.distance_yd is not null) then 'bodyweight_distance_sets'
           else 'completion_only'
         end
       ) = any($1::text[])
@@ -907,4 +936,42 @@ function toIso(d) {
   const m = String(date.getMonth() + 1).padStart(2, '0');
   const day = String(date.getDate()).padStart(2, '0');
   return `${y}-${m}-${day}`;
+}
+
+export async function getActivityCalendar({ year, month, scope = 'active' } = {}) {
+  const y = Number(year);
+  const m = Number(month);
+  if (!Number.isInteger(y) || !Number.isInteger(m) || m < 1 || m > 12) {
+    const err = new Error('year and month are required (month 1–12)');
+    err.status = 400;
+    throw err;
+  }
+
+  const from = `${y}-${String(m).padStart(2, '0')}-01`;
+  const lastDay = new Date(y, m, 0).getDate();
+  const to = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+
+  const conditions = ['ws.workout_date >= $1', 'ws.workout_date <= $2'];
+  const params = [from, to];
+
+  if (resolveScope(scope) === 'active') {
+    const program = await getActiveProgram();
+    if (!program) return { year: y, month: m, dates: [] };
+    params.push(program.id);
+    conditions.push(`ws.program_id = $${params.length}`);
+  }
+
+  const { rows } = await query(
+    `select distinct ws.workout_date
+       from workout_sessions ws
+      where ${conditions.join(' and ')}
+      order by ws.workout_date`,
+    params
+  );
+
+  return {
+    year: y,
+    month: m,
+    dates: rows.map((r) => toIso(r.workout_date)),
+  };
 }

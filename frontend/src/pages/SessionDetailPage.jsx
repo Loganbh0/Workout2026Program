@@ -4,6 +4,7 @@ import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
 import { Card } from '../components/Cards.jsx';
 import { ChevronLeftIcon } from '../components/Icons.jsx';
+import { formatSetSummary } from '../workoutHelpers.js';
 
 function formatDate(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -16,11 +17,14 @@ function formatDate(iso) {
 }
 
 function formatSet(set) {
-  const parts = [];
-  if (set.weightLbs != null) parts.push(`${set.weightLbs} lbs`);
-  if (set.reps != null) parts.push(`${set.reps} reps`);
-  if (set.assistedBand) parts.push('band');
-  return parts.length ? parts.join(' × ') : '—';
+  return formatSetSummary({
+    weightLbs: set.weightLbs ?? (set.weight_lbs != null ? Number(set.weight_lbs) : null),
+    reps: set.reps != null ? Number(set.reps) : null,
+    durationSeconds:
+      set.durationSeconds ?? (set.duration_seconds != null ? Number(set.duration_seconds) : null),
+    distanceYd: set.distanceYd ?? (set.distance_yd != null ? Number(set.distance_yd) : null),
+    assistedBand: Boolean(set.assistedBand ?? set.assisted_band),
+  });
 }
 
 function formatLogSummary(log) {

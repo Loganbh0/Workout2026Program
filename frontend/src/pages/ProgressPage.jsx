@@ -11,7 +11,9 @@ import {
 import { api } from '../api.js';
 import TopNav from '../components/TopNav.jsx';
 import ScopeToggle from '../components/ScopeToggle.jsx';
+import WorkoutCalendar from '../components/WorkoutCalendar.jsx';
 import { Card } from '../components/Cards.jsx';
+import { formatDuration } from '../workoutHelpers.js';
 
 function formatDate(iso) {
   const d = new Date(`${iso}T12:00:00`);
@@ -20,7 +22,7 @@ function formatDate(iso) {
 
 const axisStyle = { fontSize: 11, fill: '#6e6e73' };
 
-function ChartTooltip({ active, payload, label }) {
+function ChartTooltip({ active, payload, label, formatValue }) {
   if (!active || !payload?.length) return null;
   return (
     <div
@@ -35,7 +37,7 @@ function ChartTooltip({ active, payload, label }) {
       <div style={{ color: '#a1a1a6', marginBottom: 4 }}>{label}</div>
       {payload.map((p) => (
         <div key={p.dataKey} style={{ color: '#fff' }}>
-          {p.name}: {p.value}
+          {p.name}: {formatValue ? formatValue(p.value) : p.value}
         </div>
       ))}
     </div>
@@ -54,12 +56,30 @@ export default function ProgressPage() {
     [exercises, selected]
   );
 
+  const loggingMode = selectedMeta?.loggingMode;
+
   const showWeightChart = useMemo(() => {
     if (!selectedMeta || !series?.length) return false;
-    if (selectedMeta.loggingMode === 'bodyweight_sets') return false;
-    if (selectedMeta.loggingMode === 'weighted_sets') return true;
+    if (loggingMode === 'bodyweight_sets') return false;
+    if (loggingMode === 'bodyweight_time_sets' || loggingMode === 'bodyweight_distance_sets') {
+      return false;
+    }
+    if (loggingMode === 'weighted_sets') return true;
     return series.some((r) => r.weight != null);
-  }, [selectedMeta, series]);
+  }, [selectedMeta, series, loggingMode]);
+
+  const showRepsChart = useMemo(() => {
+    if (!selectedMeta || !series?.length) return false;
+    if (loggingMode === 'bodyweight_time_sets' || loggingMode === 'bodyweight_distance_sets') {
+      return false;
+    }
+    if (loggingMode === 'bodyweight_sets') return true;
+    if (loggingMode === 'weighted_sets') return true;
+    return series.some((r) => r.reps != null);
+  }, [selectedMeta, series, loggingMode]);
+
+  const showTimeChart = loggingMode === 'bodyweight_time_sets' && series?.length > 0;
+  const showDistanceChart = loggingMode === 'bodyweight_distance_sets' && series?.length > 0;
 
   useEffect(() => {
     let active = true;
@@ -91,6 +111,9 @@ export default function ProgressPage() {
             date: formatDate(r.workout_date),
             weight: r.weight_lbs != null ? Number(r.weight_lbs) : null,
             reps: r.reps != null ? Number(r.reps) : null,
+            duration:
+              r.duration_seconds != null ? Number(r.duration_seconds) : null,
+            distance: r.distance_yd != null ? Number(r.distance_yd) : null,
             exertion: r.exertion != null ? Number(r.exertion) : null,
           }))
         );
@@ -108,6 +131,8 @@ export default function ProgressPage() {
         <h1 className="heading" style={{ marginTop: 12 }}>Progress</h1>
         <p className="subtitle">Track your trends over time.</p>
         <ScopeToggle value={scope} onChange={setScope} />
+
+        <WorkoutCalendar scope={scope} />
 
         {error && <div className="empty">{error}</div>}
 
@@ -142,7 +167,28 @@ export default function ProgressPage() {
                 {showWeightChart && (
                   <Chart title="Weight (lbs)" data={series} dataKey="weight" name="Weight" />
                 )}
-                <Chart title="Reps" data={series} dataKey="reps" name="Reps" />
+                {showRepsChart && (
+                  <Chart title="Reps" data={series} dataKey="reps" name="Reps" />
+                )}
+                {showTimeChart && (
+                  <Chart
+                    title="Best time"
+                    data={series}
+                    dataKey="duration"
+                    name="Time"
+                    formatValue={(v) => formatDuration(v) ?? '—'}
+                    tickFormatter={(v) => formatDuration(v) ?? v}
+                  />
+                )}
+                {showDistanceChart && (
+                  <Chart
+                    title="Best distance (yd)"
+                    data={series}
+                    dataKey="distance"
+                    name="Distance"
+                    formatValue={(v) => (v != null ? `${v} yd` : '—')}
+                  />
+                )}
                 <Chart title="Effort (1–5)" data={series} dataKey="exertion" name="Effort" domain={[0, 5]} />
               </>
             )}
@@ -153,7 +199,7 @@ export default function ProgressPage() {
   );
 }
 
-function Chart({ title, data, dataKey, name, domain }) {
+function Chart({ title, data, dataKey, name, domain, formatValue, tickFormatter }) {
   return (
     <Card className="chart-card">
       <p className="chart-card__title">{title}</p>
@@ -161,8 +207,15 @@ function Chart({ title, data, dataKey, name, domain }) {
         <LineChart data={data} margin={{ top: 6, right: 8, bottom: 0, left: -18 }}>
           <CartesianGrid stroke="#2a2a2c" vertical={false} />
           <XAxis dataKey="date" tick={axisStyle} axisLine={false} tickLine={false} />
-          <YAxis tick={axisStyle} axisLine={false} tickLine={false} domain={domain || ['auto', 'auto']} width={42} />
-          <Tooltip content={<ChartTooltip />} />
+          <YAxis
+            tick={axisStyle}
+            axisLine={false}
+            tickLine={false}
+            domain={domain || ['auto', 'auto']}
+            width={42}
+            tickFormatter={tickFormatter}
+          />
+          <Tooltip content={<ChartTooltip formatValue={formatValue} />} />
           <Line
             type="monotone"
             dataKey={dataKey}

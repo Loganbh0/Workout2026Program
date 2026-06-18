@@ -12,7 +12,9 @@ const WEEKDAY_ORDER = { monday: 1, tuesday: 2, wednesday: 3, thursday: 4, friday
 
 const LOGGING_OPTIONS = [
   { value: 'weighted_sets', label: 'Weight' },
-  { value: 'bodyweight_sets', label: 'Bodyweight (reps)' },
+  { value: 'bodyweight_sets', label: 'Bodyweight — reps' },
+  { value: 'bodyweight_time_sets', label: 'Bodyweight — time' },
+  { value: 'bodyweight_distance_sets', label: 'Bodyweight — distance' },
   { value: 'completion_only', label: 'Bodyweight (no reps)' },
 ];
 
@@ -278,7 +280,13 @@ export default function ProgramForm({
                       className="select"
                       value={ex.targetReps}
                       onChange={(e) => updateExercise(weekday, i, { targetReps: e.target.value })}
-                      placeholder="Reps"
+                      placeholder={
+                        ex.loggingMode === 'bodyweight_time_sets'
+                          ? 'Target (e.g. 60 sec)'
+                          : ex.loggingMode === 'bodyweight_distance_sets'
+                            ? 'Target (e.g. 20 yd)'
+                            : 'Reps'
+                      }
                       disabled={ex.loggingMode === 'completion_only'}
                     />
                   </div>

@@ -1,13 +1,13 @@
-# Deploying Workout Editing and Ad-Hoc Sessions
+# Deploying Time/Distance Logging + Progress Calendar
 
-This guide covers what to update after pulling workout editing, program editing, UI trim, and one-off session features.
+This guide covers what to update after pulling bodyweight time/distance logging and the Progress tab workout calendar.
 
 ---
 
 ## Order of operations
 
 1. Push code to GitHub
-2. Run `0006_adhoc_sessions.sql` in Supabase (and prior migrations if needed)
+2. Run `0007_bodyweight_metrics.sql` in Supabase (and prior migrations if needed)
 3. Wait for Render to redeploy the backend
 4. Deploy the frontend to GitHub Pages
 5. Hard-refresh and verify
@@ -20,17 +20,18 @@ Open your project at [supabase.com](https://supabase.com) → **SQL Editor**.
 
 Run:
 
-`supabase/migrations/0006_adhoc_sessions.sql`
+`supabase/migrations/0007_bodyweight_metrics.sql`
 
 This adds:
-- `session_type` (`program` | `adhoc`) and optional `title` on `workout_sessions`
-- Nullable `day_number` for ad-hoc sessions
-- Constraints so program sessions require a day number
+- `duration_seconds` and `distance_yd` on `exercise_set_logs`
+- `bodyweight_time_sets` and `bodyweight_distance_sets` logging modes on `program_exercises`
 
 ### Verify
 
 ```sql
-select session_type, title, day_number, workout_date from workout_sessions order by id desc limit 5;
+select column_name from information_schema.columns
+ where table_name = 'exercise_set_logs'
+   and column_name in ('duration_seconds', 'distance_yd');
 ```
 
 ---
@@ -39,11 +40,10 @@ select session_type, title, day_number, workout_date from workout_sessions order
 
 ### What changes
 
-- `PUT /sessions/:id` — update logged workouts
-- `POST /sessions` with `sessionType: "adhoc"` — one-off workouts
-- `GET /today` returns `sessionId` + `session` when already logged
-- `PUT /programs/:id` accepts full `days[]` for program editing
-- Stats / `alreadyLogged` count **program** sessions only (adhoc excluded from completion)
+- Set logs accept `durationSeconds` and `distanceYd` on create/update session
+- `GET /activity/calendar?year=2026&month=6&scope=active|all` — workout dates for a month
+- Progress series include `duration_seconds` and `distance_yd`
+- Program create/edit accepts `bodyweight_time_sets` and `bodyweight_distance_sets`
 
 Push to GitHub; no new env vars.
 
@@ -53,11 +53,10 @@ Push to GitHub; no new env vars.
 
 ### What changes
 
-- Today: add/remove exercises before save; **Edit workout** after save
-- **Log one-off workout** link → `/session/new`
-- History session detail: **Edit workout**
-- Program detail: **Edit plan** → `/programs/:id/edit`
-- Removed streak/check-in/completion row; kept week progress bar only
+- Program builder / ad-hoc exercises: bodyweight reps, time, or distance per set
+- Set rows: minutes + seconds (time) or yards (distance)
+- Progress tab: monthly workout calendar above exercise charts
+- Progress charts for time (`m:ss`) and distance (`yd`) exercises
 
 Hard-refresh after deploy.
 
@@ -65,12 +64,12 @@ Hard-refresh after deploy.
 
 ## Quick smoke checklist
 
-- [ ] Today workout form: add/remove exercises, save
-- [ ] After save: Edit workout → change sets → update
-- [ ] Log one-off workout → appears in History, does not bump `X/40`
-- [ ] History → session → Edit workout
-- [ ] Program detail → Edit plan → change days/exercises → save
-- [ ] Progress bar only (no streak/check-in row) on Today and day-complete
+- [ ] Create program exercise with **Bodyweight — time** → log sets with min/sec
+- [ ] Create program exercise with **Bodyweight — distance** → log yards per set
+- [ ] History session detail shows time/distance correctly
+- [ ] Edit workout preserves time/distance values
+- [ ] Progress calendar highlights days with any logged session
+- [ ] Progress chart shows time or distance for those exercises
 
 ---
 
@@ -80,4 +79,5 @@ Hard-refresh after deploy.
 |------|---------|
 | `0004_programs.sql` | Multi-program |
 | `0005_flexible_program_days.sql` | Custom splits |
-| `0006_adhoc_sessions.sql` | One-off sessions (**this release**) |
+| `0006_adhoc_sessions.sql` | One-off sessions |
+| `0007_bodyweight_metrics.sql` | Time/distance sets (**this release**) |

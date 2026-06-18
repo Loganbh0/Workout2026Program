@@ -1,5 +1,27 @@
 import { parseSetCount, emptySets, resolveLoggingMode } from './setCount.js';
 
+export function formatDuration(seconds) {
+  if (seconds == null) return null;
+  const total = Number(seconds);
+  const m = Math.floor(total / 60);
+  const s = total % 60;
+  if (m > 0) return `${m}:${String(s).padStart(2, '0')}`;
+  return `${s}s`;
+}
+
+export function formatSetSummary(set) {
+  const parts = [];
+  if (set.weightLbs != null) parts.push(`${set.weightLbs} lbs`);
+  if (set.reps != null) parts.push(`${set.reps} reps`);
+  if (set.durationSeconds != null) {
+    const formatted = formatDuration(set.durationSeconds);
+    if (formatted) parts.push(formatted);
+  }
+  if (set.distanceYd != null) parts.push(`${set.distanceYd} yd`);
+  if (set.assistedBand) parts.push('band');
+  return parts.length ? parts.join(' × ') : '—';
+}
+
 export function normalizeVariantOptions(exercise) {
   const raw = exercise?.variant_options ?? exercise?.variantOptions;
   if (!raw) return [];
@@ -40,6 +62,8 @@ export function inferLoggingModeFromSets(sets) {
   if (!sets?.length) return 'completion_only';
   if (sets.some((s) => s.weightLbs != null)) return 'weighted_sets';
   if (sets.some((s) => s.reps != null)) return 'bodyweight_sets';
+  if (sets.some((s) => s.durationSeconds != null)) return 'bodyweight_time_sets';
+  if (sets.some((s) => s.distanceYd != null)) return 'bodyweight_distance_sets';
   return 'completion_only';
 }
 
@@ -70,6 +94,9 @@ export function valueFromLog(log) {
     weightLbs: s.weightLbs ?? (s.weight_lbs != null ? Number(s.weight_lbs) : null),
     reps: s.reps != null ? Number(s.reps) : null,
     assistedBand: Boolean(s.assistedBand ?? s.assisted_band),
+    durationSeconds:
+      s.durationSeconds ?? (s.duration_seconds != null ? Number(s.duration_seconds) : null),
+    distanceYd: s.distanceYd ?? (s.distance_yd != null ? Number(s.distance_yd) : null),
   }));
   return {
     completed: Boolean(log.completed),
@@ -108,6 +135,8 @@ export function buildLogsFromRows(rows) {
               weightLbs: s.weightLbs ?? null,
               reps: s.reps ?? null,
               assistedBand: s.assistedBand ?? false,
+              durationSeconds: s.durationSeconds ?? null,
+              distanceYd: s.distanceYd ?? null,
             })),
     };
   });

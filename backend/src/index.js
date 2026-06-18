@@ -21,8 +21,8 @@ import {
   createProgram,
   updateProgram,
   activateProgram,
-  updateSession,
   getActiveProgram,
+  getActivityCalendar,
 } from './queries.js';
 
 const app = express();
@@ -156,6 +156,15 @@ api.get('/exercises', asyncHandler(async (req, res) => {
 
 api.get('/progress/exercise/:name', asyncHandler(async (req, res) => {
   res.json(await getExerciseProgress(req.params.name, req.query.scope));
+}));
+
+api.get('/activity/calendar', asyncHandler(async (req, res) => {
+  const { year, month, scope } = req.query;
+  res.json(await getActivityCalendar({
+    year: year ? Number(year) : undefined,
+    month: month ? Number(month) : undefined,
+    scope,
+  }));
 }));
 
 app.use('/api/v1', api);

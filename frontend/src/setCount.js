@@ -16,6 +16,8 @@ export function emptySets(count) {
     weightLbs: null,
     reps: null,
     assistedBand: false,
+    durationSeconds: null,
+    distanceYd: null,
   }));
 }
 

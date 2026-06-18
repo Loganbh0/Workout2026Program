@@ -30,6 +30,36 @@
   grid-template-columns: 1fr auto;
 }
 
+.set-row__inputs--compact {
+  grid-template-columns: 1fr auto;
+}
+
+.set-row__inputs--time {
+  grid-template-columns: 1fr 1fr;
+}
+
+.set-row__inputs--distance {
+  grid-template-columns: 1fr;
+}
+
+.set-row__distance-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.set-row__distance-input input {
+  flex: 1;
+  min-width: 0;
+}
+
+.set-row__unit {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+
 .set-row__band {
   display: flex;
   align-items: center;

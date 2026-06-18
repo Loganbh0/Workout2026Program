@@ -34,7 +34,7 @@ The program is **data-driven**. Exercises live in [`backend/data/program.json`](
 
 1. Create a project at [supabase.com](https://supabase.com).
 2. Run the migrations (in order) against your project. Either:
-   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0006_adhoc_sessions.sql`, or
+   - **SQL editor:** paste the contents of `supabase/migrations/0001_init.sql` through `0007_bodyweight_metrics.sql`, or
    - **Supabase CLI:**
      ```bash
      supabase link --project-ref <your-ref>
@@ -163,4 +163,5 @@ Base: `/api/v1` · all routes require header `x-api-key`.
 | POST | `/sessions` | Create session; program (`dayNumber`) or adhoc (`sessionType: "adhoc"`, `title`) |
 | PUT | `/sessions/:id` | Update session exertion, notes, and logs |
 | GET | `/exercises?scope=active\|all` | Logged exercises (`{ name, loggingMode }[]`; excludes completion-only) |
-| GET | `/progress/exercise/:name?scope=active\|all` | Time series for charts |
+| GET | `/progress/exercise/:name?scope=active\|all` | Time series for charts (weight, reps, duration, distance) |
+| GET | `/activity/calendar?year=2026&month=6&scope=active\|all` | Distinct workout dates in a month |

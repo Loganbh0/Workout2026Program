@@ -7,7 +7,9 @@ import './AdHocExerciseCard.css';
 
 const LOGGING_OPTIONS = [
   { value: 'weighted_sets', label: 'Weight' },
-  { value: 'bodyweight_sets', label: 'Bodyweight (reps)' },
+  { value: 'bodyweight_sets', label: 'Bodyweight — reps' },
+  { value: 'bodyweight_time_sets', label: 'Bodyweight — time' },
+  { value: 'bodyweight_distance_sets', label: 'Bodyweight — distance' },
   { value: 'completion_only', label: 'Completion only' },
 ];
 

@@ -57,6 +57,8 @@ export const api = {
   exercises: (scope = 'active') => request(`/exercises?scope=${scope}`),
   exerciseProgress: (name, scope = 'active') =>
     request(`/progress/exercise/${encodeURIComponent(name)}?scope=${scope}`),
+  activityCalendar: (year, month, scope = 'active') =>
+    request(`/activity/calendar?year=${year}&month=${month}&scope=${scope}`),
 };
 
 export function localIsoDate(d = new Date()) {

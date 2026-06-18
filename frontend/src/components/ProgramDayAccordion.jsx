@@ -13,6 +13,8 @@ const WEEKDAY_LABEL = {
 const MODE_LABEL = {
   weighted_sets: 'Weight + reps',
   bodyweight_sets: 'Bodyweight reps',
+  bodyweight_time_sets: 'Bodyweight time',
+  bodyweight_distance_sets: 'Bodyweight distance',
   completion_only: 'Completion',
   variant: 'Variant',
 };

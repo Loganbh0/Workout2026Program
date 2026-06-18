@@ -159,6 +159,29 @@ const run = async () => {
   ok(pullProgress.length >= 1, `Pull-ups progress has ${pullProgress.length} point(s)`);
   ok(pullProgress[0].reps != null, 'Pull-ups progress includes reps');
 
+  const now = new Date();
+  const calYear = now.getFullYear();
+  const calMonth = now.getMonth() + 1;
+  const calendar = await get(`/activity/calendar?year=${calYear}&month=${calMonth}&scope=active`);
+  ok(Array.isArray(calendar.dates), 'Calendar returns dates array');
+  ok(calendar.year === calYear && calendar.month === calMonth, 'Calendar echoes year/month');
+
+  const timeProgram = await post('/programs', {
+    displayName: 'Smoke Time Distance',
+    durationWeeks: 2,
+    days: [
+      {
+        weekday: 'monday',
+        title: 'Conditioning',
+        exercises: [
+          { name: 'Plank Hold', targetSets: '3', targetReps: '60 sec', loggingMode: 'bodyweight_time_sets' },
+          { name: 'Sled Push', targetSets: '4', targetReps: '20 yd', loggingMode: 'bodyweight_distance_sets' },
+        ],
+      },
+    ],
+  });
+  ok(timeProgram.days[0].exercises[0].loggingMode === 'bodyweight_time_sets', 'Time mode saved on program');
+
   const activated = await post(`/programs/${active.id}/activate`, { startDate: '2026-06-08' });
   ok(activated.isActive === true, 'Activate program returns active program');
   ok(activated.startDate === '2026-06-08', 'Activate sets startDate');
@@ -229,6 +252,38 @@ const run = async () => {
   });
   ok(adhoc.session_type === 'adhoc', 'Adhoc session created');
   ok(adhoc.title === 'Smoke Adhoc', 'Adhoc session has title');
+
+  const adhocMetrics = await post('/sessions', {
+    workoutDate: nextWeekday(5),
+    sessionType: 'adhoc',
+    title: 'Smoke Time Distance',
+    exertion: 3,
+    logs: [
+      {
+        exerciseName: 'Smoke Plank',
+        sortOrder: 1,
+        completed: true,
+        sets: [
+          { setNumber: 1, durationSeconds: 45, assistedBand: false },
+          { setNumber: 2, durationSeconds: 60, assistedBand: false },
+        ],
+      },
+      {
+        exerciseName: 'Smoke Sled',
+        sortOrder: 2,
+        completed: true,
+        sets: [{ setNumber: 1, distanceYd: 20, assistedBand: false }],
+      },
+    ],
+  });
+  ok(adhocMetrics.logs?.length === 2, 'Time/distance adhoc logs saved');
+  ok(
+    adhocMetrics.logs[0].sets?.[0]?.durationSeconds === 45,
+    'Session read includes durationSeconds on sets'
+  );
+
+  const plankProgress = await get('/progress/exercise/Smoke%20Plank?scope=all');
+  ok(plankProgress.some((r) => r.duration_seconds != null), 'Plank progress includes duration_seconds');
 
   const statsAfterAdhoc = await get('/stats?scope=active');
   ok(statsAfterAdhoc.checkIns === checkInsBefore, 'Adhoc does not increment program check-ins');
