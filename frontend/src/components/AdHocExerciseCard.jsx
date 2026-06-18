@@ -95,26 +95,14 @@ export default function AdHocExerciseCard({
             />
           )}
         </div>
-        <div className="adhoc-exercise__actions">
-          {onRemove && (
-            <button
-              type="button"
-              className="adhoc-exercise__delete"
-              onClick={onRemove}
-              aria-label="Delete exercise"
-            >
-              Delete
-            </button>
-          )}
-          <button
-            type="button"
-            className={`exercise__check${value.completed ? ' exercise__check--on' : ''}`}
-            onClick={() => update({ completed: !value.completed })}
-            aria-label="Mark complete"
-          >
-            {value.completed && <CheckIcon width={16} height={16} />}
-          </button>
-        </div>
+        <button
+          type="button"
+          className={`exercise__check${value.completed ? ' exercise__check--on' : ''}`}
+          onClick={() => update({ completed: !value.completed })}
+          aria-label="Mark complete"
+        >
+          {value.completed && <CheckIcon width={16} height={16} />}
+        </button>
       </div>
 
       {showSets && (
@@ -133,6 +121,18 @@ export default function AdHocExerciseCard({
         </div>
       )}
 
+      {onRemove && (
+        <div className="adhoc-exercise__delete-wrap">
+          <button
+            type="button"
+            className="adhoc-exercise__delete"
+            onClick={onRemove}
+            aria-label="Delete exercise"
+          >
+            Delete
+          </button>
+        </div>
+      )}
     </div>
   );
 }
