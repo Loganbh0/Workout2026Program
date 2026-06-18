@@ -39,7 +39,7 @@ Push to GitHub; no new env vars.
 - Program detail: **Deactivate**, **Resume**, **Restart**
 - Home folders: **Paused** badge on deactivated plans with a start date
 - Today: empty state when no active program
-- Progress tab: clickable calendar, inline day workout details, **Exercise Progress** search at bottom
+- Progress tab: clickable calendar and inline day workout details
 
 Hard-refresh after deploy.
 
@@ -51,7 +51,6 @@ Hard-refresh after deploy.
 - [ ] Paused program → Resume (same start date) → Today works again
 - [ ] Paused program → Restart (new start date) → completion recalculates from new date
 - [ ] Progress calendar: click workout day → session details + notes
-- [ ] Exercise Progress search: type exercise name → charts appear below
 
 ---
 
