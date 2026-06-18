@@ -34,10 +34,10 @@ export default function HomePage() {
 
   return (
     <>
-      <TopNav title="Home" right={addButton} />
+      <TopNav title="Plans" right={addButton} />
       <div className="screen">
-        <h1 className="heading" style={{ marginTop: 12 }}>Programs</h1>
-        <p className="subtitle">Your workout plans and folders.</p>
+        <h1 className="heading" style={{ marginTop: 12 }}>Plans</h1>
+        <p className="subtitle">Optional workout programs — Today works without one.</p>
 
         {error && <div className="empty">{error}</div>}
         {!programs && !error && <div className="spinner" />}

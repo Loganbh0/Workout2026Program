@@ -27,6 +27,8 @@ export default function WorkoutForm({
   saveLabel = 'Save Workout',
   error,
   footer,
+  showLoggingFields = true,
+  emptyAddCard = false,
 }) {
   const grouped = useMemo(() => {
     const groups = [];
@@ -70,81 +72,97 @@ export default function WorkoutForm({
 
       <div className="section">
         <p className="section-label">Exercises</p>
-        <div className="stack">
-          {grouped.map((group, gi) => (
-            <div key={gi}>
-              {group.block && <div className="block-label">{group.block}</div>}
-              <div className="stack">
-                {group.items.map((ex) =>
-                  ex.isAdHoc ? (
-                    <AdHocExerciseCard
-                      key={ex.id}
-                      exercise={ex}
-                      value={values[ex.id] || { completed: false, variantKey: null, sets: [] }}
-                      onChange={(v) => onExerciseChange(ex.id, v)}
-                      onRemove={onRemoveExercise ? () => onRemoveExercise(ex.id) : undefined}
-                      onMetaChange={(patch) => onExerciseMetaChange?.(ex.id, patch)}
-                    />
-                  ) : (
-                    <div key={ex.id} className="exercise-row">
-                      <ExerciseCard
-                        exercise={ex}
-                        value={
-                          values[ex.id] || {
-                            completed: false,
-                            variantKey: null,
-                            sets: [],
-                          }
-                        }
-                        onChange={(v) => onExerciseChange(ex.id, v)}
-                      />
-                      {onRemoveExercise && (
-                        <button
-                          type="button"
-                          className="exercise-row__remove"
-                          onClick={() => onRemoveExercise(ex.id)}
-                        >
-                          Remove
-                        </button>
-                      )}
-                    </div>
-                  )
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-        {onAddExercise && (
-          <button type="button" className="btn btn--secondary" style={{ marginTop: 12 }} onClick={onAddExercise}>
+        {exercises.length === 0 && onAddExercise && emptyAddCard ? (
+          <button type="button" className="add-exercise-card" onClick={onAddExercise}>
             Add exercise
           </button>
+        ) : (
+          <>
+            <div className="stack">
+              {grouped.map((group, gi) => (
+                <div key={gi}>
+                  {group.block && <div className="block-label">{group.block}</div>}
+                  <div className="stack">
+                    {group.items.map((ex) =>
+                      ex.isAdHoc ? (
+                        <AdHocExerciseCard
+                          key={ex.id}
+                          exercise={ex}
+                          value={values[ex.id] || { completed: false, variantKey: null, sets: [] }}
+                          onChange={(v) => onExerciseChange(ex.id, v)}
+                          onRemove={onRemoveExercise ? () => onRemoveExercise(ex.id) : undefined}
+                          onMetaChange={(patch) => onExerciseMetaChange?.(ex.id, patch)}
+                        />
+                      ) : (
+                        <div key={ex.id} className="exercise-row">
+                          <ExerciseCard
+                            exercise={ex}
+                            value={
+                              values[ex.id] || {
+                                completed: false,
+                                variantKey: null,
+                                sets: [],
+                              }
+                            }
+                            onChange={(v) => onExerciseChange(ex.id, v)}
+                          />
+                          {onRemoveExercise && (
+                            <button
+                              type="button"
+                              className="exercise-row__remove"
+                              onClick={() => onRemoveExercise(ex.id)}
+                            >
+                              Remove
+                            </button>
+                          )}
+                        </div>
+                      )
+                    )}
+                  </div>
+                </div>
+              ))}
+            </div>
+            {onAddExercise && (
+              <button type="button" className="btn btn--secondary" style={{ marginTop: 12 }} onClick={onAddExercise}>
+                Add exercise
+              </button>
+            )}
+          </>
         )}
       </div>
 
-      <div className="section">
-        <p className="section-label">Effort</p>
-        <ExertionPicker value={exertion} onChange={onExertionChange} />
-      </div>
+      {showLoggingFields && (
+        <>
+          <div className="section">
+            <p className="section-label">Effort</p>
+            <ExertionPicker value={exertion} onChange={onExertionChange} />
+          </div>
 
-      <div className="section">
-        <p className="section-label">Notes</p>
-        <textarea
-          className="notes"
-          placeholder="How did it feel? PRs, energy, soreness…"
-          value={notes}
-          onChange={(e) => onNotesChange(e.target.value)}
-          rows={3}
-        />
-      </div>
+          <div className="section">
+            <p className="section-label">Notes</p>
+            <textarea
+              className="notes"
+              placeholder="How did it feel? PRs, energy, soreness…"
+              value={notes}
+              onChange={(e) => onNotesChange(e.target.value)}
+              rows={3}
+            />
+          </div>
 
-      {error && <div className="empty" style={{ paddingBottom: 0 }}>{error}</div>}
+          {error && <div className="empty" style={{ paddingBottom: 0 }}>{error}</div>}
 
-      {onSave && (
-        <div className="section">
-          <button type="button" className="btn" onClick={onSave} disabled={saving}>
-            {saving ? 'Saving…' : saveLabel}
-          </button>
-        </div>
+          {onSave && (
+            <div className="section">
+              <button type="button" className="btn" onClick={onSave} disabled={saving}>
+                {saving ? 'Saving…' : saveLabel}
+              </button>
+            </div>
+          )}
+        </>
+      )}
+
+      {!showLoggingFields && error && (
+        <div className="empty" style={{ paddingBottom: 0 }}>{error}</div>
       )}
 
       {footer}

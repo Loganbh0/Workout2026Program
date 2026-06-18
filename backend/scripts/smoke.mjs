@@ -335,6 +335,22 @@ const run = async () => {
   const noProgramToday = await get('/today');
   ok(noProgramToday.mode === 'no_program', 'Today returns no_program when nothing active');
 
+  const planFreeWorkout = await post('/sessions', {
+    workoutDate: nextWeekday(1),
+    sessionType: 'adhoc',
+    exertion: 3,
+    logs: [
+      {
+        exerciseName: 'Smoke Bodyweight',
+        sortOrder: 1,
+        completed: true,
+        sets: [{ setNumber: 1, reps: 10, assistedBand: false }],
+      },
+    ],
+  });
+  ok(planFreeWorkout.session_type === 'adhoc', 'Adhoc without active program saves');
+  ok(planFreeWorkout.title != null, 'Adhoc gets default title when omitted');
+
   const resumed = await post(`/programs/${active.id}/activate`, { resume: true });
   ok(resumed.isActive === true, 'Resume reactivates program');
   ok(resumed.startDate === originalStart, 'Resume keeps original startDate');

@@ -79,6 +79,15 @@ function resolveScope(scope) {
   return scope === 'all' ? 'all' : 'active';
 }
 
+async function applyProgramScopeFilter(conditions, params, scope) {
+  if (resolveScope(scope) !== 'active') return;
+  const program = await getActiveProgram();
+  if (program) {
+    params.push(program.id);
+    conditions.push(`ws.program_id = $${params.length}`);
+  }
+}
+
 export async function listPrograms() {
   const { rows } = await query(
     `select p.*, count(pd.id)::int as day_count
@@ -505,11 +514,17 @@ export async function resolveToday(isoDate) {
 
   const program = await getActiveProgram();
   if (!program) {
+    const { rows: countRows } = await query(
+      `select count(*)::int as total from workout_sessions where workout_date = $1`,
+      [dateIso]
+    );
+    const sessionsToday = countRows[0]?.total ?? 0;
     return {
       mode: 'no_program',
       weekday,
       date: dateIso,
-      alreadyLogged: false,
+      alreadyLogged: sessionsToday > 0,
+      sessionsToday,
       sessionId: null,
       session: null,
       program: null,
@@ -615,12 +630,7 @@ export async function listSessions({ from, to, dayNumber, limit = 100, scope = '
   const conditions = [];
   const params = [];
 
-  if (resolveScope(scope) === 'active') {
-    const program = await getActiveProgram();
-    if (!program) return [];
-    params.push(program.id);
-    conditions.push(`ws.program_id = $${params.length}`);
-  }
+  await applyProgramScopeFilter(conditions, params, scope);
 
   if (from) { params.push(from); conditions.push(`ws.workout_date >= $${params.length}`); }
   if (to) { params.push(to); conditions.push(`ws.workout_date <= $${params.length}`); }
@@ -705,6 +715,15 @@ async function insertSessionLogs(client, sessionId, logs) {
   }
 }
 
+function defaultAdhocTitle(workoutDate) {
+  const d = new Date(`${workoutDate}T12:00:00`);
+  return d.toLocaleDateString(undefined, {
+    weekday: 'long',
+    month: 'short',
+    day: 'numeric',
+  });
+}
+
 export async function createSession({
   workoutDate,
   dayNumber,
@@ -714,20 +733,18 @@ export async function createSession({
   sessionType = 'program',
   title,
 }) {
-  const program = await requireActiveProgram();
   const isAdhoc = sessionType === 'adhoc';
+  const program = isAdhoc ? await getActiveProgram() : await requireActiveProgram();
 
-  if (isAdhoc) {
-    if (!title?.trim()) {
-      const err = new Error('title is required for adhoc sessions');
-      err.status = 400;
-      throw err;
-    }
-  } else if (!dayNumber) {
+  if (!isAdhoc && !dayNumber) {
     const err = new Error('dayNumber is required for program sessions');
     err.status = 400;
     throw err;
   }
+
+  const sessionTitle = isAdhoc
+    ? (title?.trim() || defaultAdhocTitle(workoutDate))
+    : null;
 
   const sessionId = await withTransaction(async (client) => {
     const { rows } = await client.query(
@@ -740,9 +757,9 @@ export async function createSession({
         isAdhoc ? null : dayNumber,
         exertion ?? null,
         sessionNotes ?? null,
-        program.id,
+        program?.id ?? null,
         isAdhoc ? 'adhoc' : 'program',
-        isAdhoc ? title.trim() : null,
+        sessionTitle,
       ]
     );
     const id = rows[0].id;
@@ -1015,12 +1032,7 @@ export async function getActivityCalendar({ year, month, scope = 'active' } = {}
   const conditions = ['ws.workout_date >= $1', 'ws.workout_date <= $2'];
   const params = [from, to];
 
-  if (resolveScope(scope) === 'active') {
-    const program = await getActiveProgram();
-    if (!program) return { year: y, month: m, dates: [] };
-    params.push(program.id);
-    conditions.push(`ws.program_id = $${params.length}`);
-  }
+  await applyProgramScopeFilter(conditions, params, scope);
 
   const { rows } = await query(
     `select distinct ws.workout_date

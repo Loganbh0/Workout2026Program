@@ -21,6 +21,16 @@ const todayLabel = () =>
 
 let nextTempId = 1;
 
+function resetWorkoutDraft() {
+  return {
+    exercises: [],
+    values: {},
+    exertion: null,
+    notes: '',
+    removedIds: new Set(),
+  };
+}
+
 export default function TodayPage() {
   const [today, setToday] = useState(null);
   const [stats, setStats] = useState(null);
@@ -33,6 +43,7 @@ export default function TodayPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const [loggingAnother, setLoggingAnother] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -66,10 +77,12 @@ export default function TodayPage() {
     };
   }, []);
 
+  const isFreeWorkout = today?.mode === 'no_program' || loggingAnother;
   const visibleExercises = useMemo(
     () => exercises.filter((ex) => !removedIds.has(ex.id)),
     [exercises, removedIds]
   );
+  const hasExercises = visibleExercises.length > 0;
 
   function handleExerciseChange(id, value) {
     setValues((prev) => ({ ...prev, [id]: value }));
@@ -100,7 +113,7 @@ export default function TodayPage() {
 
   function handleRemoveExercise(id) {
     const ex = exercises.find((e) => e.id === id);
-    if (ex?.isAdHoc) {
+    if (ex?.isAdHoc || isFreeWorkout) {
       setExercises((prev) => prev.filter((e) => e.id !== id));
       setValues((prev) => {
         const next = { ...prev };
@@ -110,6 +123,31 @@ export default function TodayPage() {
     } else {
       setRemovedIds((prev) => new Set(prev).add(id));
     }
+  }
+
+  function handleAddAnother() {
+    const draft = resetWorkoutDraft();
+    setLoggingAnother(true);
+    setExercises(draft.exercises);
+    setValues(draft.values);
+    setRemovedIds(draft.removedIds);
+    setExertion(draft.exertion);
+    setNotes(draft.notes);
+    setError(null);
+  }
+
+  async function refreshToday() {
+    const date = localIsoDate();
+    const [t, s] = await Promise.all([api.today(date), api.stats()]);
+    setToday(t);
+    setStats(s);
+    setLoggingAnother(false);
+    const draft = resetWorkoutDraft();
+    setExercises(draft.exercises);
+    setValues(draft.values);
+    setRemovedIds(draft.removedIds);
+    setExertion(draft.exertion);
+    setNotes(draft.notes);
   }
 
   async function handleSave() {
@@ -129,17 +167,24 @@ export default function TodayPage() {
     setError(null);
     try {
       const logs = buildLogsFromRows(rows);
-      await api.createSession({
-        workoutDate: localIsoDate(),
-        dayNumber: today.dayNumber,
-        exertion,
-        sessionNotes: notes || null,
-        logs,
-      });
-      const date = localIsoDate();
-      const [t, s] = await Promise.all([api.today(date), api.stats()]);
-      setToday(t);
-      setStats(s);
+      if (isFreeWorkout) {
+        await api.createSession({
+          workoutDate: localIsoDate(),
+          sessionType: 'adhoc',
+          exertion,
+          sessionNotes: notes || null,
+          logs,
+        });
+      } else {
+        await api.createSession({
+          workoutDate: localIsoDate(),
+          dayNumber: today.dayNumber,
+          exertion,
+          sessionNotes: notes || null,
+          logs,
+        });
+      }
+      await refreshToday();
     } catch (e) {
       setError(e.message);
     } finally {
@@ -169,39 +214,66 @@ export default function TodayPage() {
     );
   }
 
-  if (today?.mode === 'no_program') {
-    return (
-      <>
-        <TopNav title="Today" />
-        <div className="screen">
-          <h1 className="heading" style={{ marginTop: 12 }}>No active program</h1>
-          <p className="subtitle">
-            Choose a program from Home and activate or resume it to see today&apos;s workout.
-          </p>
-          <div className="section">
-            <Link to="/home" className="btn">
-              Go to Home
-            </Link>
-          </div>
-        </div>
-      </>
-    );
-  }
-
-  const showDayComplete = today?.mode === 'rest' || today?.alreadyLogged;
+  const isRest = today?.mode === 'rest';
+  const showDayComplete =
+    !loggingAnother &&
+    (isRest || today?.alreadyLogged);
 
   if (showDayComplete) {
     return (
       <DayCompleteView
-        mode={today?.mode === 'rest' ? 'rest' : 'complete'}
+        mode={isRest ? 'rest' : 'complete'}
         weekday={today?.weekday}
         stats={stats}
-        showAdhocLink
+        showProgress={today?.mode !== 'no_program'}
+        showAddAnother={!isRest && Boolean(today?.alreadyLogged)}
+        onAddAnother={handleAddAnother}
       />
     );
   }
 
   const pd = today?.programDay || day;
+
+  if (isFreeWorkout) {
+    return (
+      <>
+        <TopNav title="Today" right={<span className="dim" style={{ fontSize: 13 }}>{todayLabel()}</span>} />
+        <div className="screen">
+          <h1 className="heading" style={{ marginTop: 12 }}>Ready when you are</h1>
+          <p className="subtitle">
+            No plan needed — log what you did today and keep moving forward.
+          </p>
+
+          <WorkoutForm
+            showProgress={false}
+            exercises={visibleExercises}
+            values={values}
+            onExerciseChange={handleExerciseChange}
+            onExerciseMetaChange={handleExerciseMetaChange}
+            onRemoveExercise={handleRemoveExercise}
+            onAddExercise={handleAddExercise}
+            exertion={exertion}
+            onExertionChange={setExertion}
+            notes={notes}
+            onNotesChange={setNotes}
+            onSave={handleSave}
+            saving={saving}
+            saveLabel="Log workout"
+            error={error}
+            showLoggingFields={hasExercises}
+            emptyAddCard
+            footer={
+              today?.mode === 'no_program' ? (
+                <Link to="/home" className="adhoc-link">
+                  Browse plans
+                </Link>
+              ) : null
+            }
+          />
+        </div>
+      </>
+    );
+  }
 
   return (
     <>
@@ -226,11 +298,6 @@ export default function TodayPage() {
           saving={saving}
           saveLabel="Save Workout"
           error={error}
-          footer={
-            <Link to="/session/new" className="adhoc-link">
-              Log one-off workout instead
-            </Link>
-          }
         />
       </div>
     </>
